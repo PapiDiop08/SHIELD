@@ -1,4 +1,3 @@
-// ── SHIELD App ────────────────────────────────────────────────────────────
 import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./AuthContext.jsx";
 import Login from "./pages/Login.jsx";
