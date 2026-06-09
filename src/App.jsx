@@ -22,89 +22,104 @@ import UserProfile from "./pages/UserProfile.jsx";
 import SimProfile from "./pages/SimProfile.jsx";
 
 import {
-  MOCK_ALERTS, MOCK_RULES, MOCK_BLACKLIST, MOCK_CASES,
-  MOCK_USERS, MOCK_OPERATORS, MOCK_LOGS, MOCK_BLOCKINGS,
-  MOCK_COMPLAINTS, UDF_FIELDS,
-} from "./mockData.js";
+  useAlerts, useRules, useBlockings, useOperators,
+  useUsers, useComplaints, useControlLists, saveLogToSupabase
+} from "./hooks/useSupabase.js";
+
+import { MOCK_CASES, UDF_FIELDS } from "./mockData.js";
 import { ALL_FRAUD_TYPES } from "./theme.js";
+import { supabase } from "./supabase.js";
 
 function AppInner() {
-  const { currentUser, addLog, can, isGFM } = useAuth();
+  const { currentUser, addLog, isGFM } = useAuth();
   const [page, setPage] = useState("dashboard");
-  const [alerts, setAlerts] = useState(MOCK_ALERTS);
-  const [rules, setRules] = useState(MOCK_RULES);
-  const [blacklist, setBlacklist] = useState(MOCK_BLACKLIST);
-  const [cases, setCases] = useState(MOCK_CASES);
-  const [users, setUsers] = useState(MOCK_USERS);
-  const [operators, setOperators] = useState(MOCK_OPERATORS);
-  const [udfFields, setUdfFields] = useState(UDF_FIELDS);
-  const [complaints, setComplaints] = useState(MOCK_COMPLAINTS);
-  const [blockings, setBlockings] = useState(MOCK_BLOCKINGS);
   const [simProfile, setSimProfile] = useState(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
-  const [tick, setTick] = useState(0);
+  const [cases, setCases] = useState(MOCK_CASES);
+  const [udfFields, setUdfFields] = useState(UDF_FIELDS);
 
-  // Filter data by operator for non-GFM users
-  const visibleAlerts = isGFM() ? alerts : alerts.filter(a => a.operator === currentUser?.operator);
-  const visibleCases = isGFM() ? cases : cases.filter(c => c.operator === currentUser?.operator);
-  const visibleRules = isGFM() ? rules : rules.filter(r => !r.operator || r.operator === currentUser?.operator || r.scope === "global");
-  const visibleBlockings = isGFM() ? blockings : blockings.filter(b => b.operator === currentUser?.operator);
-  const visibleUsers = isGFM() ? users : users.filter(u => u.operator === currentUser?.operator || u.role === "superadmin");
+  const { operators, setOperators, createOperator, updateOperator } = useOperators();
+  const { users, setUsers, createUser, updateUser } = useUsers();
 
-  useEffect(() => {
-    const t = setInterval(() => setTick(x => x + 1), 18000);
-    return () => clearInterval(t);
-  }, []);
+  const currentOperator = operators.find(o => o.name === currentUser?.operator);
+  const operatorIdFilter = isGFM() ? null : currentOperator?.id;
 
-  useEffect(() => {
-    if (!tick || !currentUser) return;
-    const ops = ["Orange Sénégal","Yass Telecom","Expresso"];
-    const op = isGFM() ? ops[Math.floor(Math.random()*ops.length)] : currentUser.operator;
-    const newAlert = {
-      id: `a${Date.now()}`,
-      time: new Date().toTimeString().slice(0,5),
-      msisdn: `77${Math.floor(Math.random()*900+100)}XXXXX`,
-      operator: op,
-      type: ALL_FRAUD_TYPES[Math.floor(Math.random()*ALL_FRAUD_TYPES.length)],
-      severity: ["critical","high","medium"][Math.floor(Math.random()*3)],
-      status: "alert",
-      cellId: `BTS-DKR-0${Math.floor(Math.random()*50)}`,
-      score: Math.floor(Math.random()*40+55),
-      assignedTo: null, caseId: null, slaDeadline: null, notes: [],
-      createdAt: new Date().toISOString().slice(0,19).replace("T"," "),
-      imei: "35XXXXXXXXXXXX", imsi: "60801XXXXXXXXX", rule: "Règle SHIELD auto",
-    };
-    setAlerts(p => [newAlert, ...p.slice(0,49)]);
-  }, [tick, currentUser]);
+  const { alerts, setAlerts, updateAlertStatus, assignAlert } = useAlerts(operatorIdFilter);
+  const { rules, setRules, createRule, updateRule, toggleRule, deleteRule } = useRules();
+  const { blockings, setBlockings, createBlocking, unblock, reblock } = useBlockings(operatorIdFilter);
+  const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(operatorIdFilter);
+  const { complaints, setComplaints } = useComplaints(operatorIdFilter);
+
+  const addLogEnhanced = (action, entity, entityId, detail, pg) => {
+    const log = addLog(action, entity, entityId, detail, pg);
+    if (currentUser) saveLogToSupabase({ ...log, userName: currentUser.name, userRole: currentUser.role });
+    return log;
+  };
 
   const navigate = (newPage) => {
     setPage(newPage);
-    if (currentUser && newPage !== page) {
-      const pageNames = { dashboard:"Dashboard",alerts:"Alertes",cases:"Cases",rules:"Règles",blacklist:"Listes",cells:"Antennes",complaints:"Plaintes",reports:"Rapports",logs:"Audit Log",admin:"Admin",udf:"UDF Manager",settings:"Paramètres",operators:"Opérateurs",blockings:"Blocages",ai:"IA Analyse",billing:"Facturation" };
-      addLog("VIEW_PAGE","page",null,`Page ${pageNames[newPage]||newPage} consultée`,newPage);
-    }
+    if (currentUser) addLogEnhanced("VIEW_PAGE", "page", null, `Page ${newPage}`, newPage);
   };
 
+  // Live alert simulation (dev)
+  useEffect(() => {
+    if (!currentUser || operators.length === 0) return;
+    const t = setInterval(async () => {
+      const ops = operators.filter(o => o.active);
+      if (!ops.length) return;
+      const op = isGFM() ? ops[Math.floor(Math.random() * ops.length)] : ops.find(o => o.name === currentUser.operator);
+      if (!op) return;
+      await supabase.from('alerts').insert([{
+        operator_id: op.id,
+        msisdn: `221${Math.floor(Math.random() * 9e8 + 1e8)}`,
+        fraud_type: ALL_FRAUD_TYPES[Math.floor(Math.random() * ALL_FRAUD_TYPES.length)],
+        severity: ['critical','high','medium'][Math.floor(Math.random() * 3)],
+        score: Math.floor(Math.random() * 40 + 55),
+        status: 'alert',
+        cell_id: `BTS-DKR-0${Math.floor(Math.random() * 50)}`,
+        detected_at: new Date().toISOString(),
+      }]);
+    }, 30000);
+    return () => clearInterval(t);
+  }, [currentUser, operators]);
+
   if (!currentUser) return <Login />;
-  if (simProfile) return <SimProfile {...simProfile} onBack={() => setSimProfile(null)} setBlacklist={setBlacklist} setBlockings={setBlockings} blacklist={blacklist} alerts={visibleAlerts} cases={visibleCases} users={users} addLog={addLog} currentUser={currentUser} />;
+
+  if (simProfile) return (
+    <SimProfile {...simProfile} onBack={() => setSimProfile(null)}
+      setBlacklist={setBlacklist} setBlockings={setBlockings}
+      blacklist={blacklist} alerts={alerts} cases={cases}
+      users={users} addLog={addLogEnhanced} currentUser={currentUser} />
+  );
+
   if (showUserProfile) return <UserProfile onBack={() => setShowUserProfile(false)} />;
 
   const sharedProps = {
-    alerts: visibleAlerts, setAlerts,
-    rules: visibleRules, setRules,
+    alerts, setAlerts,
+    rules, setRules,
     blacklist, setBlacklist,
-    cases: visibleCases, setCases,
-    users: visibleUsers, setUsers,
+    cases, setCases,
+    users, setUsers,
     operators, setOperators,
     udfFields, setUdfFields,
     complaints, setComplaints,
-    blockings: visibleBlockings, setBlockings,
-    setSimProfile, addLog, navigate,
+    blockings, setBlockings,
+    setSimProfile, navigate,
+    addLog: addLogEnhanced,
     allAlerts: alerts, allUsers: users,
+    // Supabase actions
+    updateAlertStatus, assignAlert,
+    createRule, updateRule, toggleRule, deleteRule,
+    createBlocking, unblock, reblock,
+    addEntry, toggleEntry, deleteEntry, moveEntry,
+    createOperator, updateOperator,
+    createUser, updateUser,
+    currentOperator, operatorIdFilter,
   };
 
   return (
-    <Layout page={page} setPage={navigate} alerts={visibleAlerts} cases={visibleCases} onProfileClick={() => setShowUserProfile(true)}>
+    <Layout page={page} setPage={navigate} alerts={alerts} cases={cases}
+      onProfileClick={() => setShowUserProfile(true)}>
       {page === "dashboard" && <Dashboard {...sharedProps} />}
       {page === "alerts" && <Alerts {...sharedProps} />}
       {page === "cases" && <Cases {...sharedProps} />}
@@ -113,7 +128,7 @@ function AppInner() {
       {page === "cells" && <Cells {...sharedProps} />}
       {page === "complaints" && <Complaints {...sharedProps} />}
       {page === "reports" && <Reports {...sharedProps} />}
-      {page === "logs" && <Logs logs={[]} addLog={addLog} users={users} />}
+      {page === "logs" && <Logs logs={[]} addLog={addLogEnhanced} users={users} />}
       {page === "admin" && <Admin {...sharedProps} />}
       {page === "udf" && <UDFManager {...sharedProps} />}
       {page === "settings" && <Settings {...sharedProps} />}
