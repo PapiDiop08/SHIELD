@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase.js';
 
+
 // ── Operators ─────────────────────────────────────────────────────────────
 export function useOperators() {
   const [operators, setOperatorsState] = useState([]);
@@ -9,16 +10,29 @@ export function useOperators() {
   const fetch = useCallback(async () => {
     const { data, error } = await supabase.from('operators').select('*').order('name');
     if (!error && data) {
-      setOperatorsState(data.map(o => ({
-        id: o.id, name: o.name, code: o.code, country: o.country,
-        active: o.active, contact: o.contact_email, contractStart: o.created_at?.slice(0,10),
-        monthlyFee: o.monthly_fee, perAlertFee: o.per_alert_fee,
-        perBlockFee: o.per_block_fee, perAIFee: o.per_ai_fee,
-        packs: { mm: o.pack_mm, ai: o.pack_ai, deepai: o.pack_deepai, api: o.pack_api },
-        slaEnabled: o.sla_enabled,
-        slaConfig: { critical: o.sla_critical, high: o.sla_high, medium: o.sla_medium },
-        rules: 0, detections: 0, blocked: 0,
-      })));
+      // Charger les compteurs réels pour chaque opérateur
+      const enriched = await Promise.all(data.map(async (o) => {
+        const [alertsRes, blockedRes, rulesRes] = await Promise.all([
+          supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('operator_id', o.id),
+          supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('operator_id', o.id).eq('status', 'blocked'),
+          supabase.from('rules').select('*', { count: 'exact', head: true }).eq('active', true),
+        ]);
+        return {
+          id: o.id, name: o.name, code: o.code, country: o.country,
+          active: o.active, contact: o.contact_email, contractStart: o.created_at?.slice(0,10),
+          monthlyFee: o.monthly_fee || 250000,
+          perAlertFee: o.per_alert_fee || 5,
+          perBlockFee: o.per_block_fee || 10,
+          perAIFee: o.per_ai_fee || 500,
+          packs: { mm: o.pack_mm, ai: o.pack_ai, deepai: o.pack_deepai, api: o.pack_api },
+          slaEnabled: o.sla_enabled,
+          slaConfig: { critical: o.sla_critical, high: o.sla_high, medium: o.sla_medium },
+          rules: rulesRes.count || 0,
+          detections: alertsRes.count || 0,
+          blocked: blockedRes.count || 0,
+        };
+      }));
+      setOperatorsState(enriched);
     }
     setLoading(false);
   }, []);
@@ -118,7 +132,7 @@ export function useAlerts(operatorFilter) {
         createdAt: a.detected_at,
         msisdn: a.msisdn, imei: a.imei || '', imsi: a.imsi || '',
         cellId: a.cell_id || '', type: a.fraud_type, severity: a.severity,
-        score: a.score, status: a.status, assignedTo: a.assigned_to,
+        score: a.score || 0, status: a.status, assignedTo: a.assigned_to,
         caseId: a.case_id, operatorId: a.operator_id,
         operator: a.operators?.name || '—',
         rule: a.rule_id || '', notes: a.notes || [],
@@ -367,4 +381,581 @@ export async function saveLogToSupabase(log) {
   } catch(e) {
     // Silently fail
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FULL LINK — Nouveaux hooks
+// ══════════════════════════════════════════════════════════════
+
+// ============================================================
+// SHIELD — FULL LINK — Hooks manquants à ajouter dans useSupabase.js
+// Coller à la suite des hooks existants
+// ============================================================
+
+
+// ─────────────────────────────────────────────────────────────
+// useDashboardStats — stats calculées depuis alerts, rules, cases
+// ─────────────────────────────────────────────────────────────
+export function useDashboardStats(operatorId = null) {
+  const [stats, setStats] = useState(null);
+  const [trend, setTrend] = useState([]);
+  const [byType, setByType] = useState([]);
+  const [recentAlerts, setRecentAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Filtre opérateur optionnel
+      const opFilter = (q) => operatorId ? q.eq('operator_id', operatorId) : q;
+
+      // Détections aujourd'hui
+      const { count: detectionsToday } = await opFilter(
+        supabase.from('alerts').select('*', { count: 'exact', head: true })
+          .gte('detected_at', today.toISOString())
+      );
+
+      // Fraudes bloquées (total)
+      const { count: fraudsBlocked } = await opFilter(
+        supabase.from('alerts').select('*', { count: 'exact', head: true })
+          .eq('status', 'blocked')
+      );
+
+      // Règles actives
+      const { count: activeRules } = await supabase
+        .from('rules').select('*', { count: 'exact', head: true })
+        .eq('active', true);
+
+      // Cases ouverts
+      const { count: openCases } = await opFilter(
+        supabase.from('cases').select('*', { count: 'exact', head: true })
+          .neq('status', 'closed')
+      );
+
+      // Blocages actifs
+      const { count: activeBlockings } = await opFilter(
+        supabase.from('blockings').select('*', { count: 'exact', head: true })
+          .eq('status', 'active')
+      );
+
+      setStats({
+        detectionsToday: detectionsToday || 0,
+        fraudsBlocked: fraudsBlocked || 0,
+        activeRules: activeRules || 0,
+        openCases: openCases || 0,
+        activeBlockings: activeBlockings || 0,
+        revenueSaved: (fraudsBlocked || 0) * 4200, // ~4200 XOF valeur moy par fraude bloquée
+      });
+
+      // Tendance 7 jours — alertes par jour
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const { data: trendRaw } = await opFilter(
+        supabase.from('alerts').select('detected_at, status')
+          .gte('detected_at', sevenDaysAgo.toISOString())
+          .order('detected_at', { ascending: true })
+      );
+
+      if (trendRaw) {
+        const grouped = {};
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const key = d.toISOString().slice(0, 10);
+          grouped[key] = { date: key, total: 0, blocked: 0 };
+        }
+        trendRaw.forEach(a => {
+          const key = a.detected_at.slice(0, 10);
+          if (grouped[key]) {
+            grouped[key].total++;
+            if (a.status === 'blocked') grouped[key].blocked++;
+          }
+        });
+        setTrend(Object.values(grouped));
+      }
+
+      // Par type de fraude
+      const { data: alertsAll } = await opFilter(
+        supabase.from('alerts').select('fraud_type')
+      );
+      if (alertsAll) {
+        const typeCount = {};
+        alertsAll.forEach(a => {
+          typeCount[a.fraud_type] = (typeCount[a.fraud_type] || 0) + 1;
+        });
+        setByType(Object.entries(typeCount).map(([name, value]) => ({ name, value })));
+      }
+
+      // Alertes récentes
+      const { data: recent } = await opFilter(
+        supabase.from('alerts').select(`
+          id, msisdn, fraud_type, status, risk_score, detected_at,
+          triggered_rule_name
+        `).order('detected_at', { ascending: false }).limit(5)
+      );
+      setRecentAlerts(recent || []);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [operatorId]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { stats, trend, byType, recentAlerts, loading, error, refetch: fetch };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// useSimProfile — profil complet SIM depuis Supabase
+// ─────────────────────────────────────────────────────────────
+export function useSimProfile(msisdn) {
+  const [profile, setProfile] = useState(null);
+  const [cdrHistory, setCdrHistory] = useState([]);
+  const [simSwaps, setSimSwaps] = useState([]);
+  const [relatedAlerts, setRelatedAlerts] = useState([]);
+  const [cellMovements, setCellMovements] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async (targetMsisdn) => {
+    const target = targetMsisdn || msisdn;
+    if (!target) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // Profil complet depuis v_sim_profile
+      const { data: simData } = await supabase
+        .from('v_sim_profile')
+        .select('*')
+        .eq('msisdn', target)
+        .single();
+
+      // CDR Voice récent (10 derniers)
+      const { data: cdrVoice } = await supabase
+        .from('cdr_voice')
+        .select('*')
+        .eq('msisdn', target)
+        .order('start_time', { ascending: false })
+        .limit(10);
+
+      // Historique SIM Swaps
+      const { data: swaps } = await supabase
+        .from('sim_swap_history')
+        .select('*')
+        .eq('msisdn', target)
+        .order('swap_date', { ascending: false });
+
+      // Alertes liées à ce MSISDN
+      const { data: alerts } = await supabase
+        .from('alerts')
+        .select('id, fraud_type, status, risk_score, detected_at, triggered_rule_name')
+        .eq('msisdn', target)
+        .order('detected_at', { ascending: false })
+        .limit(10);
+
+      // Déplacements Cell IDs
+      const { data: cellsRaw } = await supabase
+        .from('cdr_voice')
+        .select('cell_id, start_time')
+        .eq('msisdn', target)
+        .order('start_time', { ascending: false })
+        .limit(100);
+
+      // Grouper par cell_id
+      const cellCount = {};
+      (cellsRaw || []).forEach(r => {
+        cellCount[r.cell_id] = (cellCount[r.cell_id] || 0) + 1;
+      });
+      const cellMovementsData = Object.entries(cellCount).map(([cellId, count]) => ({
+        cellId,
+        count,
+      })).sort((a, b) => b.count - a.count);
+
+      setProfile(simData || null);
+      setCdrHistory(cdrVoice || []);
+      setSimSwaps(swaps || []);
+      setRelatedAlerts(alerts || []);
+      setCellMovements(cellMovementsData);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [msisdn]);
+
+  useEffect(() => { if (msisdn) fetch(msisdn); }, [msisdn, fetch]);
+
+  return { profile, cdrHistory, simSwaps, relatedAlerts, cellMovements, loading, error, fetchProfile: fetch };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// useCases — CRUD complet cases
+// ─────────────────────────────────────────────────────────────
+export function useCases(operatorId = null) {
+  const [cases, setCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      let q = supabase
+        .from('cases')
+        .select(`
+          *,
+          operators(name, code)
+        `)
+        .order('created_at', { ascending: false });
+      if (operatorId) q = q.eq('operator_id', operatorId);
+      const { data, error: err } = await q;
+      if (err) throw err;
+      setCases(data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [operatorId]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  // Realtime
+  useEffect(() => {
+    const sub = supabase.channel('cases-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cases' }, fetch)
+      .subscribe();
+    return () => supabase.removeChannel(sub);
+  }, [fetch]);
+
+  const createCase = async (caseData) => {
+    const { data, error: err } = await supabase
+      .from('cases').insert([caseData]).select().single();
+    if (err) throw err;
+    await fetch();
+    return data;
+  };
+
+  const updateCase = async (id, updates) => {
+    const { data, error: err } = await supabase
+      .from('cases').update(updates).eq('id', id).select().single();
+    if (err) throw err;
+    await fetch();
+    return data;
+  };
+
+  const deleteCase = async (id) => {
+    const { error: err } = await supabase.from('cases').delete().eq('id', id);
+    if (err) throw err;
+    await fetch();
+  };
+
+  const closeCase = (id) => updateCase(id, { status: 'closed' });
+  const escalateCase = (id) => updateCase(id, { status: 'escalated', priority: 'critical' });
+
+  return { cases, loading, error, refetch: fetch, createCase, updateCase, deleteCase, closeCase, escalateCase };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// useCellAnomalies — lecture + actions depuis cell_anomalies
+// ─────────────────────────────────────────────────────────────
+export function useCellAnomalies(operatorId = null) {
+  const [anomalies, setAnomalies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      let q = supabase
+        .from('cell_anomalies')
+        .select('*, operators(name, code)')
+        .order('detected_at', { ascending: false });
+      if (operatorId) q = q.eq('operator_id', operatorId);
+      const { data, error: err } = await q;
+      if (err) throw err;
+      setAnomalies(data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [operatorId]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  // Stats par cell_id depuis cdr_voice
+  const fetchCellStats = async (cellId) => {
+    const { data } = await supabase
+      .from('cdr_voice')
+      .select('msisdn, duration, fraud_flag')
+      .eq('cell_id', cellId)
+      .limit(500);
+    if (!data) return null;
+    const uniqueSims = new Set(data.map(r => r.msisdn)).size;
+    const suspiciousSims = data.filter(r => r.tx_status === "failed").length;
+    const avgDuration = data.reduce((s, r) => s + (r.duration_sec || 0), 0) / (data.length || 1);
+    return { uniqueSims, suspiciousSims, avgDuration: Math.round(avgDuration), callCount: data.length };
+  };
+
+  return { anomalies, loading, error, refetch: fetch, fetchCellStats };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// useReportsStats — statistiques pour la page Rapports
+// ─────────────────────────────────────────────────────────────
+export function useReportsStats(operatorId = null, period = 30) {
+  const [stats, setStats] = useState(null);
+  const [byType, setByType] = useState([]);
+  const [trend, setTrend] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - period);
+
+      const opFilter = (q) => operatorId ? q.eq('operator_id', operatorId) : q;
+
+      // Totaux
+      const { count: totalAlerts } = await opFilter(
+        supabase.from('alerts').select('*', { count: 'exact', head: true })
+          .gte('detected_at', since.toISOString())
+      );
+      const { count: blocked } = await opFilter(
+        supabase.from('alerts').select('*', { count: 'exact', head: true })
+          .eq('status', 'blocked').gte('detected_at', since.toISOString())
+      );
+      const { count: falsePositives } = await opFilter(
+        supabase.from('alerts').select('*', { count: 'exact', head: true })
+          .eq('status', 'false_positive').gte('detected_at', since.toISOString())
+      );
+
+      setStats({
+        totalAlerts: totalAlerts || 0,
+        blocked: blocked || 0,
+        falsePositives: falsePositives || 0,
+        detectionRate: totalAlerts ? Math.round((blocked / totalAlerts) * 100) : 0,
+        revenueSaved: (blocked || 0) * 4200,
+        avgRiskScore: 0, // calculé ci-dessous
+      });
+
+      // Par type
+      const { data: alertsRaw } = await opFilter(
+        supabase.from('alerts').select('fraud_type, status, risk_score')
+          .gte('detected_at', since.toISOString())
+      );
+      if (alertsRaw) {
+        const typeMap = {};
+        alertsRaw.forEach(a => {
+          if (!typeMap[a.fraud_type]) typeMap[a.fraud_type] = { name: a.fraud_type, total: 0, blocked: 0, fp: 0, scoreSum: 0 };
+          typeMap[a.fraud_type].total++;
+          if (a.status === 'blocked') typeMap[a.fraud_type].blocked++;
+          if (a.status === 'false_positive') typeMap[a.fraud_type].fp++;
+          typeMap[a.fraud_type].scoreSum += a.risk_score || 0;
+        });
+        setByType(Object.values(typeMap).map(t => ({
+          ...t,
+          avgScore: t.total ? Math.round(t.scoreSum / t.total) : 0,
+        })));
+      }
+
+      // Tendance par semaine
+      const { data: trendRaw } = await opFilter(
+        supabase.from('alerts').select('detected_at, status')
+          .gte('detected_at', since.toISOString())
+          .order('detected_at', { ascending: true })
+      );
+      if (trendRaw) {
+        const weekMap = {};
+        trendRaw.forEach(a => {
+          const d = new Date(a.detected_at);
+          const weekStart = new Date(d);
+          weekStart.setDate(d.getDate() - d.getDay());
+          const key = weekStart.toISOString().slice(0, 10);
+          if (!weekMap[key]) weekMap[key] = { week: key, total: 0, blocked: 0 };
+          weekMap[key].total++;
+          if (a.status === 'blocked') weekMap[key].blocked++;
+        });
+        setTrend(Object.values(weekMap));
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [operatorId, period]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { stats, byType, trend, loading, error, refetch: fetch };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// useBillingStats — facturation calculée par opérateur
+// ─────────────────────────────────────────────────────────────
+export function useBillingStats() {
+  const [billing, setBilling] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const firstDay = new Date();
+      firstDay.setDate(1);
+      firstDay.setHours(0, 0, 0, 0);
+
+      // Opérateurs
+      const { data: operators } = await supabase.from('operators').select('*');
+
+      // Alertes, blocages, IA usage par opérateur ce mois
+      const results = await Promise.all((operators || []).map(async (op) => {
+        const { count: alerts } = await supabase
+          .from('alerts').select('*', { count: 'exact', head: true })
+          .eq('operator_id', op.id)
+          .gte('detected_at', firstDay.toISOString());
+
+        const { count: blockings } = await supabase
+          .from('blockings').select('*', { count: 'exact', head: true })
+          .eq('operator_id', op.id)
+          .eq('status', 'active');
+
+        const { data: aiData } = await supabase
+          .from('ai_usage').select('tokens_used, cost_usd')
+          .eq('operator_id', op.id)
+          .gte('used_at', firstDay.toISOString());
+
+        const aiTokens = (aiData || []).reduce((s, r) => s + r.tokens_used, 0);
+        const aiCost = (aiData || []).reduce((s, r) => s + parseFloat(r.cost_usd), 0);
+
+        const baseFee = op.plan === 'enterprise' ? 2500 : op.plan === 'pro' ? 1200 : 500; // USD
+        const alertsFee = Math.round((alerts || 0) * 0.5);
+        const total = baseFee + alertsFee + Math.round(aiCost);
+
+        return {
+          operator: op,
+          alerts: alerts || 0,
+          blockings: blockings || 0,
+          aiTokens,
+          aiCost: aiCost.toFixed(2),
+          baseFee,
+          alertsFee,
+          total,
+          status: 'pending',
+        };
+      }));
+
+      setBilling(results);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { billing, loading, error, refetch: fetch };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// useAuditLogs — depuis table audit_logs Supabase
+// ─────────────────────────────────────────────────────────────
+export function useAuditLogs(filters = {}) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      let q = supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(filters.limit || 100);
+
+      if (filters.operatorId) q = q.eq('operator_id', filters.operatorId);
+      if (filters.userId) q = q.eq('user_id', filters.userId);
+      if (filters.action) q = q.eq('action', filters.action);
+      if (filters.since) q = q.gte('created_at', filters.since);
+
+      const { data, error: err } = await q;
+      if (err) throw err;
+      setLogs(data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [JSON.stringify(filters)]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return { logs, loading, error, refetch: fetch };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// useUDFFields — lecture + gestion depuis udf_fields
+// ─────────────────────────────────────────────────────────────
+export function useUDFFields() {
+  const [fields, setFields] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error: err } = await supabase
+        .from('udf_fields')
+        .select('*')
+        .order('cat').order('label');
+      if (err) throw err;
+      setFields(data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const createField = async (fieldData) => {
+    const { data, error: err } = await supabase
+      .from('udf_fields').insert([fieldData]).select().single();
+    if (err) throw err;
+    await fetch();
+    return data;
+  };
+
+  const updateField = async (id, updates) => {
+    const { data, error: err } = await supabase
+      .from('udf_fields').update(updates).eq('id', id).select().single();
+    if (err) throw err;
+    await fetch();
+    return data;
+  };
+
+  const toggleField = async (id, enabled) => updateField(id, { enabled });
+
+  const deleteField = async (id) => {
+    const { error: err } = await supabase.from('udf_fields').delete().eq('id', id);
+    if (err) throw err;
+    await fetch();
+  };
+
+  return { fields, loading, error, refetch: fetch, createField, updateField, toggleField, deleteField };
 }

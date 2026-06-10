@@ -1,259 +1,475 @@
-// ── SHIELD SimProfile Page ───────────────────────────────────────────────────
-import { useState } from "react";
-import { C, statusColor, statusLabel, fraudCatIcon, fraudCatColor } from "../theme.js";
-import { Card, Badge, Btn, Avatar } from "../components.jsx";
-import { useAuth } from "../AuthContext.jsx";
+// ── SHIELD SimProfile Page — FULL LINK ───────────────────────────────────────
+// Colonnes réelles Supabase vérifiées
 
-export default function SimProfile({ msisdn, score, fraudType, onBack, setBlacklist, blacklist, alerts, cases, users, addLog }) {
-  const { currentUser } = useAuth();
-  const [decision, setDecision] = useState(null);
-  const [note, setNote] = useState("");
-  const [notes, setNotes] = useState([]);
-  const [assignTo, setAssignTo] = useState("");
-  const [actionLog, setActionLog] = useState([
-    { ts: "08:34:12", user: "SHIELD Auto", action: "Détection automatique", detail: `Score ${score} — Règle SIM Box déclenchée` },
-    { ts: "08:35:01", user: currentUser?.name || "Admin", action: "Profil consulté", detail: "Ouverture du profil SIM" },
-  ]);
+import { useState, useEffect, useCallback } from "react";
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
+import { C, sevColor, statusColor, statusLabel } from "../theme.js";
+import { Card, Badge, Btn } from "../components.jsx";
+import { supabase } from "../supabase.js";
 
-  const sim = {
-    msisdn, imsi: "60801XXXXXXXXX", imei: "354921XXXXXXXX", imeiPrefix: "354921",
-    cellId: "BTS-DKR-042", operator: "Orange Sénégal", firstSeen: "2026-03-12",
-    lastSeen: "2026-06-06 08:34", simAge: 84,
-    stats: {
-      callsOut7d: Math.floor(score * 34), callsIn7d: Math.floor(score * 0.1),
-      sms7d: 2, dataMB7d: "0.1", callsOut30d: Math.floor(score * 150),
-      uniqueDest7d: Math.floor(score * 30), fixedCalls7d: 187, avgDuration: "6.2",
-      topCountries: [{ c: "AE — Emirats", n: 1240 }, { c: "MA — Maroc", n: 890 }, { c: "SN local", n: 678 }],
-      similarPct: (score * 0.003).toFixed(1),
-      similarCount: Math.floor(score * 8.4),
-    },
-    cells: [{ cell: "BTS-DKR-042", pct: 98, days: 82 }, { cell: "BTS-DKR-018", pct: 2, days: 2 }],
-    history: [
-      { date: "08:34", type: "Appel sortant", dest: "+97150XXXXXXX", dur: "8s", cell: "BTS-DKR-042" },
-      { date: "08:33", type: "Appel sortant", dest: "+97150XXXXXXX", dur: "6s", cell: "BTS-DKR-042" },
-      { date: "08:32", type: "Appel sortant", dest: "+21260XXXXXXX", dur: "5s", cell: "BTS-DKR-042" },
-      { date: "08:31", type: "Appel entrant", dest: "+33612XXXXXX", dur: "0s (manqué)", cell: "BTS-DKR-042" },
-      { date: "08:30", type: "Appel sortant", dest: "+97155XXXXXXX", dur: "7s", cell: "BTS-DKR-042" },
-    ],
+// ── Hook profil complet SIM ───────────────────────────────────────────────
+function useSimProfile(msisdn) {
+  const [profile, setProfile]             = useState(null);
+  const [cdrHistory, setCdrHistory]       = useState([]);
+  const [simSwaps, setSimSwaps]           = useState([]);
+  const [relatedAlerts, setRelatedAlerts] = useState([]);
+  const [cellMovements, setCellMovements] = useState([]);
+  const [loading, setLoading]             = useState(false);
+  const [error, setError]                 = useState(null);
+
+  const fetch = useCallback(async (target) => {
+    if (!target) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // Tout en parallèle
+      const [simRes, cdrRes, swapRes, alertRes, cellRes, smsRes] = await Promise.all([
+        // v_sim_profile — tous les agrégats + scores
+        supabase.from("v_sim_profile").select("*").eq("msisdn", target).maybeSingle(),
+        // CDR Voice — msisdn_a, msisdn_b, duration_sec, cell_id, start_time
+        supabase.from("cdr_voice")
+          .select("msisdn_a, msisdn_b, imsi, imei, cell_id, duration_sec, start_time, call_type, is_international, is_premium, country_code_b")
+          .eq("msisdn_a", target)
+          .order("start_time", { ascending: false })
+          .limit(10),
+        // SIM Swaps
+        supabase.from("sim_swap_history")
+          .select("msisdn, old_imsi, new_imsi, old_imei, new_imei, swap_reason, swap_channel, swapped_at")
+          .eq("msisdn", target)
+          .order("swapped_at", { ascending: false }),
+        // Alertes liées
+        supabase.from("alerts")
+          .select("id, fraud_type, status, score, detected_at, triggered_rule_name")
+          .eq("msisdn", target)
+          .order("detected_at", { ascending: false })
+          .limit(10),
+        // Cell IDs depuis CDR voice
+        supabase.from("cdr_voice")
+          .select("cell_id")
+          .eq("msisdn_a", target)
+          .limit(500),
+        // SMS count
+        supabase.from("cdr_sms")
+          .select("msisdn_a, sms_type")
+          .eq("msisdn_a", target)
+          .limit(200),
+      ]);
+
+      const simData  = simRes.data;
+      const cdrVoice = cdrRes.data || [];
+      const swaps    = swapRes.data || [];
+      const alerts   = alertRes.data || [];
+      const cellsRaw = cellRes.data || [];
+      const smsRaw   = smsRes.data || [];
+
+      // Agréger cell_ids
+      const cellCount = {};
+      cellsRaw.forEach(r => {
+        if (r.cell_id) cellCount[r.cell_id] = (cellCount[r.cell_id] || 0) + 1;
+      });
+      const cellMoves = Object.entries(cellCount)
+        .map(([cellId, count]) => ({ cellId, count }))
+        .sort((a, b) => b.count - a.count);
+
+      // Si pas de v_sim_profile mais CDR existe — construire profil minimal
+      const enriched = simData || (cdrVoice.length > 0 ? {
+        msisdn: target,
+        imei: cdrVoice[0]?.imei || null,
+        imsi: cdrVoice[0]?.imsi || null,
+        cell_id: cellMoves[0]?.cellId || null,
+        call_out_count: cdrVoice.length,
+        call_in_count: 0,
+        avg_duration_out: cdrVoice.reduce((s,r) => s + (r.duration_sec||0), 0) / (cdrVoice.length||1),
+        sms_out_count: smsRaw.length,
+        velocity_calls_per_min: 0,
+        distinct_cell_ids: cellMoves.length,
+        cell_id_fixed: cellMoves.length === 1,
+        score_simbox: 0, score_wangiri: 0, score_ato: 0, score_irsf: 0,
+      } : null);
+
+      setProfile(enriched);
+      setCdrHistory(cdrVoice);
+      setSimSwaps(swaps);
+      setRelatedAlerts(alerts);
+      setCellMovements(cellMoves);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { if (msisdn) fetch(msisdn); }, [msisdn, fetch]);
+  return { profile, cdrHistory, simSwaps, relatedAlerts, cellMovements, loading, error, fetchProfile: fetch };
+}
+
+// ── Jauge score ───────────────────────────────────────────────────────────
+function ScoreGauge({ label, score }) {
+  const s = Math.round(score || 0);
+  const color = s >= 80 ? C.danger : s >= 50 ? C.warning : s >= 30 ? C.sky : C.success;
+  return (
+    <div style={{ textAlign: "center", padding: "10px 0" }}>
+      <div style={{ width: 60, height: 60, borderRadius: "50%", border: `4px solid ${color}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        margin: "0 auto 6px", background: color + "10" }}>
+        <span style={{ fontSize: 18, fontWeight: 900, color }}>{s}</span>
+      </div>
+      <div style={{ fontSize: 10, color: C.muted, fontWeight: 600 }}>{label}</div>
+    </div>
+  );
+}
+
+// ── Composant principal ───────────────────────────────────────────────────
+export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraudType, onBack,
+  setBlacklist, setBlockings, blacklist, alerts: propAlerts, users, addLog, currentUser }) {
+
+  const [inputMsisdn, setInputMsisdn] = useState(initMsisdn || "");
+  const [searchMsisdn, setSearchMsisdn] = useState(initMsisdn || "");
+
+  const { profile, cdrHistory, simSwaps, relatedAlerts, cellMovements,
+          loading, error, fetchProfile } = useSimProfile(searchMsisdn);
+
+  const QUICK = ["221776540001", "221776300001", "221775430001", "221778901001"];
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (inputMsisdn.trim()) {
+      setSearchMsisdn(inputMsisdn.trim());
+      fetchProfile(inputMsisdn.trim());
+    }
   };
 
-  const analysts = users?.filter(u => u.active && ["analyst","admin","superadmin"].includes(u.role)) || [];
-  const relatedAlerts = alerts?.filter(a => a.msisdn === msisdn) || [];
-  const relatedCases = cases?.filter(c => relatedAlerts.some(a => a.caseId === c.id)) || [];
+  const globalRisk = profile
+    ? Math.max(profile.score_simbox || 0, profile.score_wangiri || 0,
+               profile.score_ato || 0, profile.score_irsf || 0)
+    : (initScore || 0);
 
-  function doAction(action) {
-    setDecision(action);
-    const detail = { blocked: `SIM bloquée — ${fraudType}`, blacklist: `Blacklistée — ${fraudType}`, monitor: "Mise sous observation", fp: "Marquée faux positif", ignore: "Ignorée" }[action];
-    setActionLog(p => [{ ts: new Date().toTimeString().slice(0, 8), user: currentUser?.name, action: detail, detail: `Par ${currentUser?.name}` }, ...p]);
-    if (action === "blocked" || action === "blacklist") {
-      setBlacklist(p => [{ id: Date.now(), list: "blacklist", type: "MSISDN", value: msisdn, reason: `${action === "blocked" ? "Blocage" : "Blacklist"} — ${fraudType}`, addedBy: currentUser?.id, date: new Date().toISOString().slice(0, 10), active: true, matches: 0, lastMatch: null }, ...p]);
-    }
-    addLog?.("SIM_ACTION_" + action.toUpperCase(), "sim", msisdn, detail, "SimProfile");
-  }
+  const riskColor = globalRisk >= 80 ? C.danger : globalRisk >= 50 ? C.warning
+                  : globalRisk >= 30 ? C.sky : C.success;
+  const riskLabel = globalRisk >= 80 ? "Critique" : globalRisk >= 50 ? "Élevé"
+                  : globalRisk >= 30 ? "Moyen" : "Faible";
 
-  function addNote() {
-    if (!note.trim()) return;
-    const n = { id: Date.now(), ts: new Date().toTimeString().slice(0, 8), user: currentUser?.name, text: note };
-    setNotes(p => [n, ...p]);
-    setActionLog(p => [{ ts: n.ts, user: currentUser?.name, action: "Note ajoutée", detail: note.slice(0, 60) }, ...p]);
-    setNote("");
-    addLog?.("ADD_NOTE", "sim", msisdn, `Note : ${note.slice(0, 60)}`, "SimProfile");
-  }
-
-  function doAssign() {
-    if (!assignTo) return;
-    const u = users?.find(x => x.id === assignTo);
-    setActionLog(p => [{ ts: new Date().toTimeString().slice(0, 8), user: currentUser?.name, action: "Assigné", detail: `Assigné à ${u?.name}` }, ...p]);
-    addLog?.("ASSIGN_SIM", "sim", msisdn, `SIM assignée à ${u?.name}`, "SimProfile");
-    setAssignTo("");
-  }
+  const radarData = [
+    { subject: "SIM Box", A: profile?.score_simbox || 0 },
+    { subject: "Wangiri",  A: profile?.score_wangiri || 0 },
+    { subject: "ATO",      A: profile?.score_ato || 0 },
+    { subject: "IRSF",     A: profile?.score_irsf || 0 },
+  ];
 
   return (
-    <div style={{ fontFamily: "'DM Sans','Segoe UI',sans-serif", background: C.bg, minHeight: "100vh", padding: "24px 32px" }}>
+    <div style={{ padding: "28px 30px", fontFamily: "\'DM Sans\',\'Segoe UI\',sans-serif" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-        <Btn variant="ghost" onClick={onBack}>← Retour</Btn>
+        {onBack && <Btn variant="ghost" onClick={onBack}>← Retour</Btn>}
         <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.navy, fontFamily: "monospace" }}>{msisdn}</h1>
-            {fraudType && <Badge label={`${fraudCatIcon(fraudType)} ${fraudType}`} color={fraudCatColor(fraudType)} />}
-          </div>
-          <p style={{ margin: 0, color: C.textL, fontSize: 12 }}>{sim.operator} · Cell {sim.cellId} · Vu pour la 1ère fois le {sim.firstSeen}</p>
-        </div>
-        <div style={{ background: score >= 80 ? C.dangerL : C.warningL, border: `3px solid ${score >= 80 ? C.danger : C.warning}`, borderRadius: 14, padding: "10px 18px", textAlign: "center" }}>
-          <div style={{ fontSize: 30, fontWeight: 900, color: score >= 80 ? C.danger : C.warning, lineHeight: 1 }}>{score}</div>
-          <div style={{ fontSize: 9, color: C.textL, fontWeight: 700, textTransform: "uppercase" }}>Score SHIELD</div>
+          <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.navy }}>Profil SIM</h1>
+          <p style={{ margin: "3px 0 0", color: C.textL, fontSize: 12 }}>Analyse complète depuis les CDR Supabase</p>
         </div>
       </div>
 
-      {/* Action bar */}
-      {!decision ? (
-        <div style={{ background: C.white, border: `1px solid ${C.mutedL}`, borderRadius: 10, padding: "12px 18px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 700, color: C.navy, fontSize: 13 }}>Action :</span>
-          <Btn variant="danger" small onClick={() => doAction("blocked")}>🚫 Bloquer</Btn>
-          <Btn variant="purple" small onClick={() => doAction("blacklist")}>📋 Blacklister</Btn>
-          <Btn variant="warning" small onClick={() => doAction("monitor")}>👁 Observer</Btn>
-          <Btn variant="success" small onClick={() => doAction("fp")}>✅ Faux positif</Btn>
-          <Btn variant="ghost" small onClick={() => doAction("ignore")}>Ignorer</Btn>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <select value={assignTo} onChange={e => setAssignTo(e.target.value)} style={{ border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 10px", fontSize: 12, color: C.navy, background: C.white, outline: "none" }}>
-              <option value="">Assigner à un analyste...</option>
-              {analysts.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-            {assignTo && <Btn variant="sky" small onClick={doAssign}>Assigner</Btn>}
+      {/* Recherche */}
+      <form onSubmit={handleSearch} style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+        <input value={inputMsisdn} onChange={e => setInputMsisdn(e.target.value)}
+          placeholder="Entrer un MSISDN (ex: 221776540001)"
+          style={{ flex: 1, minWidth: 220, border: `1px solid ${C.mutedL}`, borderRadius: 8,
+            padding: "9px 12px", fontSize: 13, color: C.navy, outline: "none" }} />
+        <Btn type="submit">🔍 Analyser</Btn>
+      </form>
+
+      {/* Quick picks */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ fontSize: 11, color: C.muted }}>Suspects :</span>
+        {QUICK.map(m => (
+          <button key={m} onClick={() => { setInputMsisdn(m); setSearchMsisdn(m); fetchProfile(m); }}
+            style={{ padding: "3px 10px", background: C.dangerL, color: C.danger,
+              border: `1px solid ${C.danger}33`, borderRadius: 6, fontSize: 11,
+              cursor: "pointer", fontFamily: "monospace" }}>
+            {m}
+          </button>
+        ))}
+      </div>
+
+      {/* États */}
+      {!searchMsisdn && (
+        <Card style={{ padding: "60px", textAlign: "center", color: C.muted }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
+          <div>Entrez un MSISDN pour analyser son profil</div>
+        </Card>
+      )}
+      {loading && <Card style={{ padding: "60px", textAlign: "center", color: C.muted }}>
+        <div style={{ fontSize: 28, marginBottom: 12 }}>⏳</div>
+        <div>Chargement depuis Supabase…</div>
+      </Card>}
+      {error && <div style={{ background: C.dangerL, border: `1px solid ${C.danger}44`,
+        borderRadius: 10, padding: 16, color: C.danger, marginBottom: 16 }}>⚠️ {error}</div>}
+      {!loading && searchMsisdn && !profile && !error && (
+        <Card style={{ padding: "60px", textAlign: "center", color: C.muted }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+          <div>Aucun CDR trouvé pour <strong style={{ color: C.navy }}>{searchMsisdn}</strong></div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
+            Ce MSISDN n'est pas dans les CDR Supabase
           </div>
-        </div>
-      ) : (
-        <div style={{ background: decision === "blocked" || decision === "blacklist" ? C.dangerL : decision === "fp" ? C.successL : C.warningL, border: `1px solid ${decision === "blocked" || decision === "blacklist" ? C.danger : decision === "fp" ? C.success : C.warning}44`, borderRadius: 10, padding: "12px 20px", marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontWeight: 700, color: decision === "blocked" || decision === "blacklist" ? C.danger : decision === "fp" ? C.success : C.warning }}>
-            ✓ Action enregistrée — {decision === "blocked" ? "SIM bloquée" : decision === "blacklist" ? "Blacklistée" : decision === "fp" ? "Faux positif" : decision === "monitor" ? "Sous observation" : "Ignorée"}
-          </span>
-          <Btn variant="ghost" small onClick={() => setDecision(null)}>Modifier</Btn>
-        </div>
+        </Card>
       )}
 
-      <div style={{ display: "flex", gap: 18 }}>
-        {/* Left */}
-        <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Identity */}
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Identité</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {[["MSISDN", sim.msisdn], ["IMSI", sim.imsi], ["IMEI complet", sim.imei], ["IMEI Préfixe (6)", sim.imeiPrefix], ["Cell ID actuelle", sim.cellId], ["Opérateur", sim.operator], ["Ancienneté SIM", `${sim.simAge} jours`], ["Dernière activité", sim.lastSeen]].map(([k, v]) => (
-                <div key={k} style={{ background: C.bg, borderRadius: 8, padding: "8px 12px" }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 2 }}>{k}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: C.navy, fontFamily: ["MSISDN","IMSI","IMEI","Cell"].some(x => k.startsWith(x)) ? "monospace" : "inherit" }}>{v}</div>
+      {profile && !loading && (
+        <>
+          {/* Identité */}
+          <Card style={{ padding: "20px 24px", marginBottom: 14, borderLeft: `4px solid ${riskColor}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+              flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: C.navy,
+                  letterSpacing: 1, fontFamily: "monospace" }}>{profile.msisdn}</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  {profile.imei && <Badge label={`IMEI: ${profile.imei}`} color={C.sky} small />}
+                  {profile.imei_prefix6 && <Badge label={`Préfixe: ${profile.imei_prefix6}`} color={C.purple} small />}
+                  {profile.cell_id && <Badge label={`Cell: ${profile.cell_id}`} color={C.warning} small />}
+                  {profile.cell_id_fixed && <Badge label="Antenne fixe ⚠" color={C.danger} small />}
+                  {profile.distinct_cell_ids > 0 && <Badge label={`${profile.distinct_cell_ids} antenne(s)`} color={C.teal} small />}
                 </div>
-              ))}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Risque global</div>
+                <div style={{ fontSize: 44, fontWeight: 900, color: riskColor, lineHeight: 1 }}>
+                  {Math.round(globalRisk)}
+                </div>
+                <Badge label={riskLabel} color={riskColor} small />
+              </div>
             </div>
           </Card>
 
-          {/* Activity */}
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Activité</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", border: `1px solid ${C.mutedL}`, borderRadius: 8, overflow: "hidden" }}>
-              {[["", "7 jours", "30 jours"], ["Appels sortants", sim.stats.callsOut7d, sim.stats.callsOut30d], ["Appels entrants", sim.stats.callsIn7d, "—"], ["SMS", sim.stats.sms7d, "—"], ["Data (MB)", sim.stats.dataMB7d, "—"], ["Appels vers fixes", sim.stats.fixedCalls7d, "—"], ["Destinations uniques", sim.stats.uniqueDest7d, "—"], ["Durée moy. (sec)", sim.stats.avgDuration, "—"]].map(([l, v7, v30], i) => [
-                <div key={`l${i}`} style={{ padding: "8px 12px", background: i === 0 ? C.navy : i % 2 ? C.bg : C.white, fontSize: i === 0 ? 10 : 12, fontWeight: i === 0 ? 700 : 600, color: i === 0 ? C.white : C.navy, borderBottom: `1px solid ${C.mutedL}` }}>{l}</div>,
-                <div key={`7${i}`} style={{ padding: "8px 12px", background: i === 0 ? C.navyL : i % 2 ? C.bg : C.white, fontSize: i === 0 ? 10 : 13, fontWeight: 700, color: i === 0 ? C.sky : (typeof v7 === "number" && v7 > 500 ? C.danger : C.navy), borderBottom: `1px solid ${C.mutedL}`, textAlign: "center" }}>{v7}</div>,
-                <div key={`30${i}`} style={{ padding: "8px 12px", background: i === 0 ? C.navyL : i % 2 ? C.bg : C.white, fontSize: i === 0 ? 10 : 12, color: i === 0 ? C.sky : C.textL, borderBottom: `1px solid ${C.mutedL}`, textAlign: "center" }}>{v30}</div>,
-              ])}
-            </div>
-          </Card>
+          {/* Analyse rapide */}
+          {(() => {
+            const flags = [];
+            if ((profile.score_simbox || 0) >= 70) flags.push({ color: C.danger, icon: "📦",
+              text: `SIM Box probable — score ${Math.round(profile.score_simbox)}/100`,
+              detail: "Antenne fixe, zéro data, appels massifs" });
+            if ((profile.score_wangiri || 0) >= 70) flags.push({ color: C.danger, icon: "📞",
+              text: `Wangiri probable — score ${Math.round(profile.score_wangiri)}/100`,
+              detail: "Appels courts séquentiels vers numéros premium" });
+            if ((profile.score_ato || 0) >= 70) flags.push({ color: C.danger, icon: "🔓",
+              text: `ATO probable — score ${Math.round(profile.score_ato)}/100`,
+              detail: "Account Takeover — activité MM suspecte" });
+            if ((profile.score_irsf || 0) >= 70) flags.push({ color: C.warning, icon: "🌍",
+              text: `IRSF probable — score ${Math.round(profile.score_irsf)}/100`,
+              detail: "Trafic international massif vers numéros surtaxés" });
+            if (profile.cell_id_fixed) flags.push({ color: C.warning, icon: "📡",
+              text: "Antenne fixe détectée",
+              detail: `SIM toujours sur ${profile.cell_id} — indicateur SIM Box` });
+            if (simSwaps.length > 0) flags.push({ color: C.danger, icon: "🔄",
+              text: `${simSwaps.length} SIM Swap(s)`,
+              detail: "Risque ATO élevé après changement de SIM" });
+            if (relatedAlerts.length > 0) flags.push({ color: C.danger, icon: "🚨",
+              text: `${relatedAlerts.length} alerte(s) générée(s)`,
+              detail: [...new Set(relatedAlerts.map(a => a.fraud_type))].join(", ") });
+            if (flags.length === 0) flags.push({ color: C.success, icon: "✅",
+              text: "Aucun indicateur de fraude", detail: "Comportement normal" });
+            return (
+              <Card style={{ padding: "16px 20px", marginBottom: 14, borderLeft: `4px solid ${flags[0].color}` }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>⚡ Analyse rapide</div>
+                {flags.map((f, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10,
+                    background: f.color + "08", borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{f.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: f.color }}>{f.text}</div>
+                      <div style={{ fontSize: 11, color: C.textL, marginTop: 2 }}>{f.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            );
+          })()}
 
-          {/* History */}
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Historique CDR récent</div>
-            {sim.history.map((h, i) => (
-              <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.mutedL}`, alignItems: "center" }}>
-                <div style={{ fontSize: 11, color: C.muted, width: 42 }}>{h.date}</div>
-                <Badge label={h.type} color={h.type.includes("sortant") ? C.danger : C.sky} small />
-                <div style={{ flex: 1, fontFamily: "monospace", fontSize: 11, color: C.navy }}>{h.dest}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{h.dur}</div>
-                <div style={{ fontSize: 10, color: C.muted }}>{h.cell}</div>
+          {/* Scores + Radar */}
+          <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
+            <Card style={{ flex: 1, padding: "18px 20px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Scores de fraude</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                <ScoreGauge label="SIM Box" score={profile.score_simbox} />
+                <ScoreGauge label="Wangiri"  score={profile.score_wangiri} />
+                <ScoreGauge label="ATO"      score={profile.score_ato} />
+                <ScoreGauge label="IRSF"     score={profile.score_irsf} />
               </div>
-            ))}
-          </Card>
+            </Card>
+            <Card style={{ flex: 1, padding: "18px 20px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 8 }}>Radar de risque</div>
+              <ResponsiveContainer width="100%" height={200}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke={C.mutedL} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: C.muted, fontSize: 11 }} />
+                  <Radar dataKey="A" stroke={C.danger} fill={C.danger} fillOpacity={0.15} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </Card>
+          </div>
 
-          {/* Notes */}
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Notes analystes</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              <input value={note} onChange={e => setNote(e.target.value)} onKeyDown={e => e.key === "Enter" && addNote()} placeholder="Ajouter une note..." style={{ flex: 1, border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: C.navy, outline: "none" }} />
-              <Btn variant="navy" small onClick={addNote}>Ajouter</Btn>
-            </div>
-            {notes.length === 0 ? <p style={{ margin: 0, color: C.muted, fontSize: 12, fontStyle: "italic" }}>Aucune note</p> : notes.map(n => (
-              <div key={n.id} style={{ background: C.bg, borderRadius: 8, padding: "10px 14px", marginBottom: 8 }}>
-                <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>{n.user}</span>
-                  <span style={{ fontSize: 11, color: C.muted }}>{n.ts}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: 13, color: C.text }}>{n.text}</p>
+          {/* Stats depuis v_sim_profile */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+            {[
+              { l: "Appels sortants",   v: profile.call_out_count ?? "—",       icon: "📞" },
+              { l: "Appels entrants",   v: profile.call_in_count ?? "—",        icon: "📲" },
+              { l: "Durée moy (s)",     v: profile.avg_duration_out ? Math.round(profile.avg_duration_out) : "—", icon: "⏱" },
+              { l: "SMS sortants",      v: profile.sms_out_count ?? "—",        icon: "💬" },
+              { l: "Vélocité/min",      v: profile.velocity_calls_per_min ? profile.velocity_calls_per_min.toFixed(2) : "—", icon: "⚡" },
+              { l: "Appels intl",       v: profile.call_intl_out_count ?? "—",  icon: "🌍" },
+              { l: "SIM Swaps",         v: simSwaps.length,                      icon: "🔄" },
+              { l: "Alertes liées",     v: relatedAlerts.length,                 icon: "🚨" },
+            ].map((s, i) => (
+              <Card key={i} style={{ flex: "1 1 120px", padding: "12px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: C.navy }}>{s.v}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{s.l}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Stats MM si disponibles */}
+          {(profile.mm_sent_count > 0 || profile.mm_sent_amount > 0) && (
+            <Card style={{ padding: "16px 20px", marginBottom: 14, borderLeft: `4px solid ${C.teal}` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>💸 Mobile Money</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {[
+                  { l: "Envois",           v: profile.mm_sent_count || 0 },
+                  { l: "Montant envoyé",   v: `${(profile.mm_sent_amount || 0).toLocaleString()} XOF` },
+                  { l: "Max transaction",  v: `${(profile.mm_max_single_tx || 0).toLocaleString()} XOF` },
+                  { l: "Nv destinataires", v: `${profile.mm_new_recipients_pct ? profile.mm_new_recipients_pct.toFixed(0) : 0}%` },
+                  { l: "Tentatives OTP",   v: profile.mm_otp_brute_count || 0 },
+                ].map((s, i) => (
+                  <div key={i} style={{ background: C.bg, borderRadius: 8, padding: "10px 14px", flex: 1, minWidth: 100 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: C.teal }}>{s.v}</div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{s.l}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </Card>
-
-          {/* Action history */}
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Historique des actions</div>
-            {actionLog.map((l, i) => (
-              <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.mutedL}`, alignItems: "flex-start" }}>
-                <div style={{ fontSize: 10, color: C.muted, width: 50, flexShrink: 0 }}>{l.ts}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.navy }}>{l.action}</div>
-                  <div style={{ fontSize: 11, color: C.textL }}>{l.detail}</div>
-                </div>
-                <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic" }}>{l.user}</div>
-              </div>
-            ))}
-          </Card>
-        </div>
-
-        {/* Right */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Behavior */}
-          <Card style={{ padding: "16px 20px", background: C.dangerL, border: `1px solid ${C.danger}33` }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.danger, marginBottom: 6 }}>Comportement similaire</div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: C.danger }}>{sim.stats.similarPct}%</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.danger }}>≈ {sim.stats.similarCount.toLocaleString()} SIMs</div>
-            <div style={{ fontSize: 11, color: C.textL, marginTop: 4 }}>de la base présentent un pattern similaire</div>
-          </Card>
-
-          {/* Top countries */}
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Top destinations</div>
-            {sim.stats.topCountries.map(c => (
-              <div key={c.c} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{c.c}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 60, height: 5, background: C.mutedL, borderRadius: 3 }}><div style={{ height: "100%", width: `${Math.min(c.n / 15, 100)}%`, background: C.red, borderRadius: 3 }} /></div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.textL, width: 35, textAlign: "right" }}>{c.n}</span>
-                </div>
-              </div>
-            ))}
-          </Card>
-
-          {/* Cell movements */}
-          <Card style={{ padding: "16px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Déplacements (Cell IDs)</div>
-            {sim.cells.map(c => (
-              <div key={c.cell} style={{ marginBottom: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, fontFamily: "monospace", color: C.navy, fontWeight: 600 }}>{c.cell}</span>
-                  <span style={{ fontSize: 11, color: C.textL }}>{c.pct}% · {c.days}j</span>
-                </div>
-                <div style={{ height: 6, background: C.mutedL, borderRadius: 3 }}><div style={{ height: "100%", width: `${c.pct}%`, background: c.pct > 90 ? C.danger : C.sky, borderRadius: 3 }} /></div>
-              </div>
-            ))}
-            {sim.cells.length === 1 || sim.cells[0].pct > 95 ? <p style={{ margin: "6px 0 0", fontSize: 11, color: C.danger, fontStyle: "italic" }}>⚠ SIM fixe — comportement SIM Box probable</p> : null}
-          </Card>
-
-          {/* Related cases */}
-          {relatedCases.length > 0 && (
-            <Card style={{ padding: "16px 20px" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Cases liés</div>
-              {relatedCases.map(c => (
-                <div key={c.id} style={{ padding: "8px 0", borderBottom: `1px solid ${C.mutedL}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{c.type} · {c.status}</div>
-                </div>
-              ))}
             </Card>
           )}
 
-          {/* Related alerts */}
-          {relatedAlerts.length > 0 && (
-            <Card style={{ padding: "16px 20px" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Alertes liées ({relatedAlerts.length})</div>
-              {relatedAlerts.slice(0, 5).map(a => (
-                <div key={a.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.mutedL}` }}>
-                  <div><div style={{ fontSize: 12, fontWeight: 600, color: C.navy }}>{a.type}</div><div style={{ fontSize: 10, color: C.muted }}>{a.time}</div></div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: a.score >= 80 ? C.danger : C.warning }}>{a.score}</div>
-                </div>
-              ))}
+          {/* CDR récent + Alertes */}
+          <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
+            <Card style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.mutedL}`,
+                fontSize: 13, fontWeight: 700, color: C.navy }}>
+                CDR Voice récent ({cdrHistory.length})
+              </div>
+              {cdrHistory.length === 0
+                ? <div style={{ padding: 20, color: C.muted, fontSize: 12 }}>Aucun CDR voice trouvé</div>
+                : <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: C.bg }}>
+                          {["Numéro B", "Durée (s)", "Cell", "Date", "Type", "Fraude"].map(h => (
+                            <th key={h} style={{ padding: "8px 12px", color: C.muted, textAlign: "left",
+                              fontWeight: 700, fontSize: 10, textTransform: "uppercase" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cdrHistory.map((c, i) => (
+                          <tr key={i} style={{ borderBottom: `1px solid ${C.mutedL}` }}>
+                            <td style={{ padding: "8px 12px", fontFamily: "monospace", color: C.navy }}>{c.msisdn_b || "—"}</td>
+                            <td style={{ padding: "8px 12px", color: C.textL }}>{c.duration_sec ?? "—"}</td>
+                            <td style={{ padding: "8px 12px", color: C.muted, fontSize: 11 }}>{c.cell_id || "—"}</td>
+                            <td style={{ padding: "8px 12px", color: C.muted, fontSize: 11 }}>
+                              {c.start_time ? new Date(c.start_time).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                            </td>
+                            <td style={{ padding: "8px 12px" }}>
+                              <span style={{ fontSize: 10, color: c.is_international ? C.warning : C.muted }}>
+                                {c.is_international ? "🌍 Intl" : c.call_type || "Local"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "8px 12px" }}>
+                              {c.is_premium
+                                ? <Badge label="Premium" color={C.danger} small />
+                                : <span style={{ color: C.success, fontSize: 12 }}>✓</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+              }
             </Card>
-          )}
-        </div>
-      </div>
+
+            <Card style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.mutedL}`,
+                fontSize: 13, fontWeight: 700, color: C.navy }}>
+                Alertes liées ({relatedAlerts.length})
+              </div>
+              {relatedAlerts.length === 0
+                ? <div style={{ padding: 20, color: C.muted, fontSize: 12 }}>Aucune alerte associée</div>
+                : relatedAlerts.map((a, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "center", padding: "10px 16px", borderBottom: `1px solid ${C.mutedL}` }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{a.fraud_type}</div>
+                      <div style={{ fontSize: 10, color: C.muted }}>
+                        {a.triggered_rule_name || "—"} · {a.detected_at ? new Date(a.detected_at).toLocaleDateString("fr-FR") : "—"}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 900,
+                        color: (a.score || 0) >= 80 ? C.danger : C.warning }}>{a.score}</span>
+                      <Badge label={statusLabel(a.status)} color={statusColor(a.status)} small />
+                    </div>
+                  </div>
+                ))
+              }
+            </Card>
+          </div>
+
+          {/* SIM Swaps + Antennes */}
+          <div style={{ display: "flex", gap: 14 }}>
+            <Card style={{ flex: 1, padding: "18px 20px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
+                SIM Swaps ({simSwaps.length})
+              </div>
+              {simSwaps.length === 0
+                ? <div style={{ color: C.success, fontSize: 12 }}>✓ Aucun SIM Swap détecté</div>
+                : simSwaps.map((s, i) => (
+                  <div key={i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.mutedL}` }}>
+                    <div style={{ fontSize: 12, color: C.navy, fontFamily: "monospace" }}>
+                      {s.old_imsi || s.old_imei || "—"} → {s.new_imsi || s.new_imei || "—"}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>
+                      {s.swap_reason || "—"} · {s.swapped_at ? new Date(s.swapped_at).toLocaleString("fr-FR") : "—"}
+                    </div>
+                  </div>
+                ))
+              }
+            </Card>
+
+            <Card style={{ flex: 1, padding: "18px 20px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
+                Antennes fréquentées ({cellMovements.length})
+              </div>
+              {cellMovements.length === 0
+                ? <div style={{ color: C.muted, fontSize: 12 }}>Aucune donnée antenne dans les CDR</div>
+                : cellMovements.slice(0, 6).map((c, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.mutedL}` }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: C.navy, fontFamily: "monospace" }}>
+                      {c.cellId}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ height: 6,
+                        width: Math.max(20, Math.round((c.count / (cellMovements[0]?.count || 1)) * 80)),
+                        background: i === 0 ? C.danger : C.sky, borderRadius: 3 }} />
+                      <span style={{ fontSize: 11, color: C.muted, minWidth: 28 }}>{c.count}x</span>
+                    </div>
+                  </div>
+                ))
+              }
+              {cellMovements.length === 1 && (
+                <div style={{ marginTop: 8, fontSize: 11, color: C.danger, fontWeight: 600 }}>
+                  ⚠ SIM fixe sur une seule antenne — indicateur SIM Box fort
+                </div>
+              )}
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }

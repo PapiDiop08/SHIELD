@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from "./AuthContext.jsx";
 import Login from "./pages/Login.jsx";
 import Layout from "./pages/Layout.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Alerts from "./pages/Alerts.jsx";
+import Detections from "./pages/Alerts.jsx";
 import Cases from "./pages/Cases.jsx";
 import Rules from "./pages/Rules.jsx";
 import Lists from "./pages/Lists.jsx";
@@ -26,29 +26,66 @@ import {
   useUsers, useComplaints, useControlLists, saveLogToSupabase
 } from "./hooks/useSupabase.js";
 
-import { MOCK_CASES, UDF_FIELDS } from "./mockData.js";
+import { MOCK_USERS, MOCK_OPERATORS } from "./mockData.js";
 import { ALL_FRAUD_TYPES } from "./theme.js";
 import { supabase } from "./supabase.js";
+
+// ── Écran de chargement ───────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0D1B3E",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      flexDirection: "column", gap: 20, fontFamily: "'DM Sans','Segoe UI',sans-serif"
+    }}>
+      <svg width="52" height="52" viewBox="0 0 200 200">
+        <path d="M100 10 L180 50 L180 120 Q180 165 100 190 Q20 165 20 120 L20 50 Z" fill="#E83A2E" opacity="0.9"/>
+        <text x="100" y="130" textAnchor="middle" fontSize="58" fontWeight="900" fill="white" fontFamily="Arial">G</text>
+      </svg>
+      <div style={{ color: "#fff", fontWeight: 700, fontSize: 18, letterSpacing: 1 }}>SHIELD</div>
+      <div style={{ color: "#8A9BB5", fontSize: 13 }}>Chargement en cours…</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{
+            width: 8, height: 8, borderRadius: "50%", background: "#5BB8E8",
+            animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite alternate`,
+            opacity: 0.4,
+          }} />
+        ))}
+      </div>
+      <style>{`@keyframes pulse { to { opacity: 1; transform: scale(1.3); } }`}</style>
+    </div>
+  );
+}
 
 function AppInner() {
   const { currentUser, addLog, isGFM } = useAuth();
   const [page, setPage] = useState("dashboard");
   const [simProfile, setSimProfile] = useState(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
-  const [cases, setCases] = useState(MOCK_CASES);
-  const [udfFields, setUdfFields] = useState(UDF_FIELDS);
 
-  const { operators, setOperators, createOperator, updateOperator } = useOperators();
-  const { users, setUsers, createUser, updateUser } = useUsers();
+  const { operators: supabaseOperators, setOperators, createOperator, updateOperator } = useOperators();
+  const { users: supabaseUsers, setUsers, createUser, updateUser } = useUsers();
+  const { alerts, setAlerts, updateAlertStatus, assignAlert } = useAlerts(null);
+  const { rules, setRules, createRule, updateRule, toggleRule, deleteRule } = useRules();
+  const { blockings, setBlockings, createBlocking, unblock, reblock } = useBlockings(null);
+  const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(null);
+  const { complaints, setComplaints } = useComplaints(null);
 
-  const currentOperator = operators.find(o => o.name === currentUser?.operator);
+  // ── Fallback : si Supabase retourne vide, on utilise les MOCK_USERS/MOCK_OPERATORS
+  // Ça évite les pages blanches si la table users/operators est vide ou RLS bloquant
+  const users = supabaseUsers.length > 0 ? supabaseUsers : MOCK_USERS;
+  const operators = supabaseOperators.length > 0 ? supabaseOperators : MOCK_OPERATORS;
+
+  // ── Filtre opérateur selon le compte connecté ────────────────────────────
+  const currentOperator = operators.find(o =>
+    o.name === currentUser?.operator || o.id === currentUser?.operatorId
+  );
   const operatorIdFilter = isGFM() ? null : currentOperator?.id;
 
-  const { alerts, setAlerts, updateAlertStatus, assignAlert } = useAlerts(operatorIdFilter);
-  const { rules, setRules, createRule, updateRule, toggleRule, deleteRule } = useRules();
-  const { blockings, setBlockings, createBlocking, unblock, reblock } = useBlockings(operatorIdFilter);
-  const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(operatorIdFilter);
-  const { complaints, setComplaints } = useComplaints(operatorIdFilter);
+  // ── Attendre que les données essentielles soient prêtes ──────────────────
+  // On affiche l'écran de chargement seulement si on n'a ni données Supabase ni mock
+  const isReady = operators.length > 0;
 
   const addLogEnhanced = (action, entity, entityId, detail, pg) => {
     const log = addLog(action, entity, entityId, detail, pg);
@@ -61,53 +98,64 @@ function AppInner() {
     if (currentUser) addLogEnhanced("VIEW_PAGE", "page", null, `Page ${newPage}`, newPage);
   };
 
-  // Live alert simulation (dev)
+  // Simulation réaliste — génère CDR complets via fonction Supabase
+  const [simActive, setSimActive] = useState(false);
   useEffect(() => {
-    if (!currentUser || operators.length === 0) return;
+    if (!simActive || !currentUser || operators.length === 0) return;
     const t = setInterval(async () => {
-      const ops = operators.filter(o => o.active);
+      const ops = operators.filter(o => o.active && o.code);
       if (!ops.length) return;
-      const op = isGFM() ? ops[Math.floor(Math.random() * ops.length)] : ops.find(o => o.name === currentUser.operator);
-      if (!op) return;
-      await supabase.from('alerts').insert([{
-        operator_id: op.id,
-        msisdn: `221${Math.floor(Math.random() * 9e8 + 1e8)}`,
-        fraud_type: ALL_FRAUD_TYPES[Math.floor(Math.random() * ALL_FRAUD_TYPES.length)],
-        severity: ['critical','high','medium'][Math.floor(Math.random() * 3)],
-        score: Math.floor(Math.random() * 40 + 55),
-        status: 'alert',
-        cell_id: `BTS-DKR-0${Math.floor(Math.random() * 50)}`,
-        detected_at: new Date().toISOString(),
-      }]);
-    }, 30000);
+      const op = isGFM()
+        ? ops[Math.floor(Math.random() * ops.length)]
+        : ops.find(o => o.name === currentUser.operator);
+      if (!op?.code) return;
+      // Appel fonction Supabase — génère CDR + alerte cohérents
+      const { data, error } = await supabase.rpc('generate_realistic_alert', {
+        op_code: op.code
+      });
+      if (error) console.warn('Simulation error:', error.message);
+      else console.log('Alert générée:', data);
+    }, 15000); // toutes les 15s
     return () => clearInterval(t);
-  }, [currentUser, operators]);
+  }, [simActive, currentUser, operators]);
 
+  // ── Pas connecté → Login ──────────────────────────────────────────────────
   if (!currentUser) return <Login />;
 
+  // ── Chargement initial ────────────────────────────────────────────────────
+  if (!isReady) return <LoadingScreen />;
+
+  // ── SimProfile ────────────────────────────────────────────────────────────
   if (simProfile) return (
-    <SimProfile {...simProfile} onBack={() => setSimProfile(null)}
-      setBlacklist={setBlacklist} setBlockings={setBlockings}
-      blacklist={blacklist} alerts={alerts} cases={cases}
-      users={users} addLog={addLogEnhanced} currentUser={currentUser} />
+    <SimProfile
+      {...simProfile}
+      onBack={() => setSimProfile(null)}
+      setBlacklist={setBlacklist}
+      setBlockings={setBlockings}
+      blacklist={blacklist}
+      alerts={alerts}
+      users={users}
+      addLog={addLogEnhanced}
+      currentUser={currentUser}
+    />
   );
 
   if (showUserProfile) return <UserProfile onBack={() => setShowUserProfile(false)} />;
 
+  // ── Props partagées ───────────────────────────────────────────────────────
   const sharedProps = {
-    alerts, setAlerts,
-    rules, setRules,
-    blacklist, setBlacklist,
-    cases, setCases,
-    users, setUsers,
-    operators, setOperators,
-    udfFields, setUdfFields,
-    complaints, setComplaints,
-    blockings, setBlockings,
+    simActive, setSimActive,
+    alerts,       setAlerts,
+    rules,        setRules,
+    blacklist,    setBlacklist,
+    users,        setUsers,
+    operators,    setOperators,
+    complaints,   setComplaints,
+    blockings,    setBlockings,
     setSimProfile, navigate,
     addLog: addLogEnhanced,
-    allAlerts: alerts, allUsers: users,
-    // Supabase actions
+    allAlerts: alerts,
+    allUsers: users,
     updateAlertStatus, assignAlert,
     createRule, updateRule, toggleRule, deleteRule,
     createBlocking, unblock, reblock,
@@ -118,24 +166,27 @@ function AppInner() {
   };
 
   return (
-    <Layout page={page} setPage={navigate} alerts={alerts} cases={cases}
-      onProfileClick={() => setShowUserProfile(true)}>
-      {page === "dashboard" && <Dashboard {...sharedProps} />}
-      {page === "alerts" && <Alerts {...sharedProps} />}
-      {page === "cases" && <Cases {...sharedProps} />}
-      {page === "rules" && <Rules {...sharedProps} />}
-      {page === "blacklist" && <Lists {...sharedProps} />}
-      {page === "cells" && <Cells {...sharedProps} />}
+    <Layout
+      page={page} setPage={navigate}
+      alerts={alerts} cases={[]}
+      onProfileClick={() => setShowUserProfile(true)}
+    >
+      {page === "dashboard"  && <Dashboard  {...sharedProps} />}
+      {page === "alerts"     && <Detections {...sharedProps} />}
+      {page === "cases"      && <Cases      {...sharedProps} />}
+      {page === "rules"      && <Rules      {...sharedProps} cases={[]} />}
+      {page === "blacklist"  && <Lists      {...sharedProps} />}
+      {page === "cells"      && <Cells      {...sharedProps} />}
       {page === "complaints" && <Complaints {...sharedProps} />}
-      {page === "reports" && <Reports {...sharedProps} />}
-      {page === "logs" && <Logs logs={[]} addLog={addLogEnhanced} users={users} />}
-      {page === "admin" && <Admin {...sharedProps} />}
-      {page === "udf" && <UDFManager {...sharedProps} />}
-      {page === "settings" && <Settings {...sharedProps} />}
-      {page === "operators" && <Operators {...sharedProps} />}
-      {page === "blockings" && <Blockings {...sharedProps} />}
-      {page === "ai" && <AIAnalysis {...sharedProps} />}
-      {page === "billing" && <Billing {...sharedProps} />}
+      {page === "reports"    && <Reports    {...sharedProps} cases={[]} />}
+      {page === "logs"       && <Logs       logs={[]} addLog={addLogEnhanced} users={users} />}
+      {page === "admin"      && <Admin      {...sharedProps} />}
+      {page === "udf"        && <UDFManager addLog={addLogEnhanced} />}
+      {page === "settings"   && <Settings   {...sharedProps} />}
+      {page === "operators"  && <Operators  {...sharedProps} />}
+      {page === "blockings"  && <Blockings  {...sharedProps} />}
+      {page === "ai"         && <AIAnalysis {...sharedProps} />}
+      {page === "billing"    && <Billing    {...sharedProps} />}
     </Layout>
   );
 }
