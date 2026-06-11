@@ -148,6 +148,8 @@ function AppInner() {
     createOperator, updateOperator,
     createUser, updateUser,
     currentOperator, operatorIdFilter,
+    cases: [],
+    currentUser,
   };
 
   return (
