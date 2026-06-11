@@ -98,26 +98,8 @@ function AppInner() {
     if (currentUser) addLogEnhanced("VIEW_PAGE", "page", null, `Page ${newPage}`, newPage);
   };
 
-  // Simulation réaliste — génère CDR complets via fonction Supabase
+  // Simulation désactivée — les alertes viennent des vrais CDR via FastAPI
   const [simActive, setSimActive] = useState(false);
-  useEffect(() => {
-    if (!simActive || !currentUser || operators.length === 0) return;
-    const t = setInterval(async () => {
-      const ops = operators.filter(o => o.active && o.code);
-      if (!ops.length) return;
-      const op = isGFM()
-        ? ops[Math.floor(Math.random() * ops.length)]
-        : ops.find(o => o.name === currentUser.operator);
-      if (!op?.code) return;
-      // Appel fonction Supabase — génère CDR + alerte cohérents
-      const { data, error } = await supabase.rpc('generate_realistic_alert', {
-        op_code: op.code
-      });
-      if (error) console.warn('Simulation error:', error.message);
-      else console.log('Alert générée:', data);
-    }, 15000); // toutes les 15s
-    return () => clearInterval(t);
-  }, [simActive, currentUser, operators]);
 
   // ── Pas connecté → Login ──────────────────────────────────────────────────
   if (!currentUser) return <Login />;
@@ -137,6 +119,9 @@ function AppInner() {
       users={users}
       addLog={addLogEnhanced}
       currentUser={currentUser}
+      addEntry={addEntry}
+      createBlocking={createBlocking}
+      operators={operators}
     />
   );
 

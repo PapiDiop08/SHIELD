@@ -5,6 +5,8 @@
 // • Option blocage manuel si client ne veut pas auto-block
 
 import { useState, useMemo } from "react";
+import { supabase } from "../supabase.js";
+import { blockAndBlacklist } from "../blockAndBlacklist.js";
 import { C, sevColor, sevLabel, statusColor, statusLabel, fraudCatIcon, fraudCatColor } from "../theme.js";
 import { Card, Badge, Btn, SearchInput, Select, SectionHeader, ConfirmModal, Avatar } from "../components.jsx";
 import { useAuth } from "../AuthContext.jsx";
@@ -117,26 +119,21 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
     setConfirm(null);
   }
 
-  // Blocage manuel groupé (pour clients sans auto-block)
-  function blockSelected() {
+  // Blocage manuel groupé — Bloquer + Blacklister MSISDN/IMEI/Cell
+  async function blockSelected() {
     const targets = (alerts||[]).filter(a => selected.includes(a.id));
-    targets.forEach(a => {
+    for (const a of targets) {
       doUpdateStatus(a.id, "blocked");
-      if (createBlocking && setBlockings) {
-        const blocking = {
-          id: `b${Date.now()}${Math.random()}`,
-          msisdn: a.msisdn, imei: a.imei, imsi: a.imsi,
-          cellId: a.cellId || a.cell_id,
-          operator: a.operator, operatorId: a.operatorId,
-          blockedBy: currentUser?.id, blockerName: currentUser?.name,
-          reason: `Blocage manuel — ${a.type} — Score ${a.score}`,
-          source: "analyst", date: new Date().toISOString().slice(0, 16),
-          active: true, autoFlagged: [],
-        };
-        setBlockings(p => [blocking, ...p]);
-      }
-      addLog("BLOCK_SIM_MANUAL", "alert", a.id, `Blocage manuel ${a.msisdn} — ${a.type} — Score ${a.score}`, "Détections");
-    });
+      await blockAndBlacklist({
+        msisdn: a.msisdn,
+        imei: a.imei || null,
+        imsi: a.imsi || null,
+        cell_id: a.cellId || a.cell_id || null,
+        operatorId: a.operatorId || null,
+        reason: `Détections — ${a.type} — Score ${a.score}`,
+        addLog,
+      });
+    }
     setSelected([]);
   }
 

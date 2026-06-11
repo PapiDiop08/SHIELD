@@ -50,30 +50,30 @@ function useCellSIMs(cellId) {
     if (!id) return;
     setLoading(true);
     try {
-      // Récupérer CDR voice pour cette antenne
+      // Récupérer CDR voice pour cette antenne — msisdn_a est la colonne correcte
       const { data: cdrRaw } = await supabase
         .from("cdr_voice")
-        .select("msisdn, duration, fraud_flag, imei, imsi")
-        .or(`cell_id.eq.${id},cell_id.eq.${id}`)
+        .select("msisdn_a, duration_sec, imei, imsi, cell_id, is_premium")
+        .eq("cell_id", id)
         .limit(500);
 
-      if (!cdrRaw) { setSims([]); return; }
+      if (!cdrRaw || cdrRaw.length === 0) { setSims([]); return; }
 
       // Agréger par MSISDN
       const simMap = {};
       cdrRaw.forEach(r => {
-        if (!simMap[r.msisdn]) {
-          simMap[r.msisdn] = {
-            msisdn: r.msisdn,
+        if (!simMap[r.msisdn_a]) {
+          simMap[r.msisdn_a] = {
+            msisdn: r.msisdn_a,
             imei: r.imei || "—",
             callsOut: 0,
             totalDuration: 0,
             fraudCount: 0,
           };
         }
-        simMap[r.msisdn].callsOut++;
-        simMap[r.msisdn].totalDuration += r.duration_sec || 0;
-        if (r.is_premium) simMap[r.msisdn].fraudCount++;
+        simMap[r.msisdn_a].callsOut++;
+        simMap[r.msisdn_a].totalDuration += r.duration_sec || 0;
+        if (r.is_premium) simMap[r.msisdn_a].fraudCount++;
       });
 
       // Récupérer scores depuis v_sim_profile pour ces MSISDNs
@@ -89,10 +89,10 @@ function useCellSIMs(cellId) {
       // Récupérer SMS count
       const { data: smsRaw } = await supabase
         .from("cdr_sms")
-        .select("msisdn")
-        .in("msisdn", msisdns);
+        .select("msisdn_a")
+        .in("msisdn_a", msisdns);
       const smsCount = {};
-      (smsRaw || []).forEach(r => { smsCount[r.msisdn] = (smsCount[r.msisdn] || 0) + 1; });
+      (smsRaw || []).forEach(r => { smsCount[r.msisdn_a] = (smsCount[r.msisdn_a] || 0) + 1; });
 
       // Récupérer data MB
       const { data: dataRaw } = await supabase

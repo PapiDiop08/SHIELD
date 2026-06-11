@@ -77,7 +77,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
   useEffect(() => {
     supabase.from("cell_anomalies")
       .select("*, operators(name)")
-      .order("detected_at", { ascending: false })
+      .order("traffic_pct", { ascending: false })
       .limit(50)
       .then(({ data: raw }) => {
         if (!raw) return;

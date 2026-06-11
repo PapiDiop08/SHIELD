@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { C } from "../theme.js";
+import { supabase } from "../supabase.js";
 import { Card, Badge, Btn, SectionHeader } from "../components.jsx";
 import { useAuth } from "../AuthContext.jsx";
 
@@ -38,20 +39,29 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
   const tags     = ["Tous", ...new Set(complaints.map(c => c.tag))];
   const filtered = filterTag === "Tous" ? complaints : (complaints||[]).filter(c => c.tag === filterTag);
 
-  function doGroupAction(action) {
+  async function doGroupAction(action) {
     const targets = (complaints||[]).filter(c => selected.includes(c.id));
-    if (action === "block") {
-      targets.forEach(c => {
-        if (c.msisdn) {
-          setBlacklist(p => [{
-            id: Date.now() + Math.random(), list: "blacklist", type: "MSISDN",
-            value: c.msisdn, reason: `Plainte : ${c.tag}`,
-            addedBy: currentUser?.id, date: new Date().toISOString().slice(0, 10),
-            active: true, matches: 0, lastMatch: null,
-          }, ...p]);
-          addLog?.("BLOCK_SIM", "complaint", c.id, `Blocage plainte — ${c.msisdn} — ${c.tag}`, "Plaintes");
-        }
-      });
+    for (const c of targets) {
+      const msisdn = c.msisdn_reported || c.msisdn;
+      if (!msisdn) continue;
+      if (action === "block") {
+        await supabase.from("control_lists").insert([{
+          list_type: "blacklist", entry_type: "msisdn",
+          value: msisdn, reason: `Plainte — ${c.fraud_type || c.tag}`,
+          active: true,
+        }]);
+        await supabase.from("alerts")
+          .update({ status: "blocked", updated_at: new Date().toISOString() })
+          .eq("msisdn", msisdn).in("status", ["alert","investigating"]);
+        addLog?.("BLOCK_SIM","complaint",c.id,`Blocage ${msisdn}`,"Plaintes");
+      } else if (action === "monitor") {
+        await supabase.from("control_lists").insert([{
+          list_type: "watchlist", entry_type: "msisdn",
+          value: msisdn, reason: `Surveillance — ${c.fraud_type || c.tag}`,
+          active: true,
+        }]);
+        addLog?.("WATCHLIST_ADD","complaint",c.id,`Watchlist ${msisdn}`,"Plaintes");
+      }
     }
     setActionDone(action);
     setSelected([]);
@@ -166,6 +176,18 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <span style={{ fontFamily: "monospace", fontWeight: 900, fontSize: 16, color: C.navy }}>{c.msisdn}</span>
                           <Badge label={c.tag} color={tagColor(c.tag)} />
+                          {c.status === "resolved" && (
+                            <span style={{ background: "#e8f5e9", color: "#2e7d32",
+                              padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                              ✅ Résolu
+                            </span>
+                          )}
+                          {c.status === "investigating" && (
+                            <span style={{ background: "#fff8e1", color: "#f57f17",
+                              padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
+                              🔍 En cours d'investigation
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: 11, color: C.muted }}>{c.date_raw}</div>
                       </div>
@@ -186,19 +208,54 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
 
                   <Card style={{ padding: "16px 20px" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>Actions</div>
+                    {c.status === "resolved" ? (
+                      <div style={{ padding: "8px 12px", background: "#e8f5e9", borderRadius: 8,
+                        color: "#2e7d32", fontSize: 12, fontWeight: 600 }}>
+                        ✅ Plainte traitée — actions effectuées
+                      </div>
+                    ) : (
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <Btn variant="danger" small onClick={() => {
-                        setBlacklist(p => [{
-                          id: Date.now(), list: "blacklist", type: "MSISDN",
-                          value: c.msisdn, reason: `Plainte : ${c.tag}`,
-                          addedBy: currentUser?.id, date: new Date().toISOString().slice(0, 10),
-                          active: true, matches: 0, lastMatch: null,
-                        }, ...p]);
-                        addLog?.("BLOCK_SIM", "complaint", c.id, `Blocage depuis plainte — ${c.msisdn}`, "Plaintes");
+                      <Btn variant="danger" small onClick={async () => {
+                        const msisdn = c.msisdn_reported || c.msisdn;
+                        if (!msisdn || !window.confirm(`Bloquer ${msisdn} ?`)) return;
+                        await supabase.from("control_lists").insert([{
+                          list_type: "blacklist", entry_type: "msisdn",
+                          value: msisdn, reason: `Plainte — ${c.fraud_type || c.tag}`,
+                          active: true,
+                        }]);
+                        await supabase.from("alerts")
+                          .update({ status: "blocked", updated_at: new Date().toISOString() })
+                          .eq("msisdn", msisdn).in("status", ["alert", "investigating"]);
+                        await supabase.from("complaints").update({ status: "resolved" }).eq("id", c.id);
+                        setComplaints(p => p.map(x => x.id === c.id ? {...x, status: "resolved"} : x));
+                        addLog?.("BLOCK_SIM", "complaint", c.id, `Blocage plainte — ${msisdn}`, "Plaintes");
                       }}>🚫 Bloquer</Btn>
-                      <Btn variant="warning" small>👁 Observer</Btn>
-                      <Btn variant="ghost" small>✅ Faux positif</Btn>
+                      <Btn variant="warning" small onClick={async () => {
+                        const msisdn = c.msisdn_reported || c.msisdn;
+                        if (!msisdn) return;
+                        await supabase.from("control_lists").insert([{
+                          list_type: "watchlist", entry_type: "msisdn",
+                          value: msisdn, reason: `Surveillance — ${c.fraud_type || c.tag}`,
+                          active: true,
+                        }]);
+                        await supabase.from("complaints").update({ status: "investigating" }).eq("id", c.id);
+                        setComplaints(p => p.map(x => x.id === c.id ? {...x, status: "investigating"} : x));
+                        addLog?.("WATCHLIST_ADD", "complaint", c.id, `Watchlist ${msisdn}`, "Plaintes");
+                      }}>👁 Surveiller</Btn>
+                      <Btn variant="ghost" small onClick={async () => {
+                        const msisdn = c.msisdn_reported || c.msisdn;
+                        if (!msisdn) return;
+                        await supabase.from("control_lists").insert([{
+                          list_type: "whitelist", entry_type: "msisdn",
+                          value: msisdn, reason: `Faux positif — Plainte classée`,
+                          active: true,
+                        }]);
+                        await supabase.from("complaints").update({ status: "resolved" }).eq("id", c.id);
+                        setComplaints(p => p.map(x => x.id === c.id ? {...x, status: "resolved"} : x));
+                        addLog?.("WHITELIST_ADD", "complaint", c.id, `Faux positif ${msisdn}`, "Plaintes");
+                      }}>✅ Faux positif</Btn>
                     </div>
+                    )}
                   </Card>
                 </div>
               );

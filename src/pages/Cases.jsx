@@ -60,16 +60,15 @@ function useCases(operatorIdFilter) {
   const createCase = useCallback(async (caseData, operatorId) => {
     const { data, error } = await supabase.from("cases").insert([{
       name: caseData.name,
-      description: caseData.description,
+      description: caseData.description || null,
       fraud_type: caseData.type,
       status: "open",
-      priority: caseData.priority,
-      assigned_to: caseData.assignedTo || [],
-      created_by: caseData.createdBy || null,
+      priority: caseData.priority || "high",
+      assigned_to: [],
       operator_id: operatorId || null,
       alert_count: 0,
       sla_hours: caseData.slaHours || 24,
-      tags: caseData.tags || [],
+      tags: Array.isArray(caseData.tags) ? caseData.tags : [],
     }]).select();
     if (!error) await fetch();
     return { data, error };

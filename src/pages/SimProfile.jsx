@@ -6,6 +6,41 @@ import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } fro
 import { C, sevColor, statusColor, statusLabel } from "../theme.js";
 import { Card, Badge, Btn } from "../components.jsx";
 import { supabase } from "../supabase.js";
+import { blockAndBlacklist } from "../blockAndBlacklist.js";
+
+// ── Actions sur une alerte depuis SimProfile ──────────────────────────────
+async function applyAlertAction(alertId, action, msisdn, operatorId, addLog, setBlockings) {
+  // 1. Mettre à jour le statut dans Supabase
+  const statusMap = {
+    block:          'blocked',
+    investigate:    'investigating',
+    false_positive: 'false_positive',
+    clear:          'cleared',
+    alert:          'alert',
+  };
+  const newStatus = statusMap[action] || action;
+  await supabase.from('alerts').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', alertId);
+
+  // 2. Si blocage — créer un blocking
+  if (action === 'block' && msisdn && operatorId) {
+    const { data: existing } = await supabase.from('blockings')
+      .select('id').eq('msisdn', msisdn).eq('active', true).maybeSingle();
+    if (!existing) {
+      await supabase.from('blockings').insert([{
+        operator_id: operatorId,
+        msisdn,
+        reason: 'Blocage manuel depuis SimProfile — Analyse analyste',
+        source: 'analyst',
+        active: true,
+        blocked_at: new Date().toISOString(),
+      }]);
+    }
+  }
+
+  // 3. Log
+  addLog?.('UPDATE_ALERT_STATUS', 'alert', alertId, `SimProfile → ${newStatus} — ${msisdn}`, 'SimProfile');
+  return newStatus;
+}
 
 // ── Hook profil complet SIM ───────────────────────────────────────────────
 function useSimProfile(msisdn) {
@@ -121,13 +156,67 @@ function ScoreGauge({ label, score }) {
 
 // ── Composant principal ───────────────────────────────────────────────────
 export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraudType, onBack,
-  setBlacklist, setBlockings, blacklist, alerts: propAlerts, users, addLog, currentUser }) {
+  setBlacklist, setBlockings, blacklist, alerts: propAlerts, users, addLog, currentUser,
+  addEntry, createBlocking, operators }) {
 
   const [inputMsisdn, setInputMsisdn] = useState(initMsisdn || "");
   const [searchMsisdn, setSearchMsisdn] = useState(initMsisdn || "");
+  const [actionLoading, setActionLoading] = useState(null);
+  const [actionDone, setActionDone] = useState(null);
+  const [localAlertStatuses, setLocalAlertStatuses] = useState({});
 
   const { profile, cdrHistory, simSwaps, relatedAlerts, cellMovements,
           loading, error, fetchProfile } = useSimProfile(searchMsisdn);
+
+  // Action sur une alerte — met à jour localement + Supabase
+  // Si BLOCAGE : toutes les alertes du MSISDN sont bloquées
+  async function handleAlertAction(alertId, action, operatorId) {
+    setActionLoading(alertId + action);
+    try {
+      const newStatus = await applyAlertAction(alertId, action, searchMsisdn, operatorId, addLog, setBlockings);
+
+      if (action === 'block') {
+        // Bloquer + Blacklister MSISDN + IMEI + Cell en une fois
+        const opId = relatedAlerts[0]?.operator_id || null;
+        const blockResults = await blockAndBlacklist({
+          msisdn: searchMsisdn,
+          imei: profile?.imei || null,
+          imsi: profile?.imsi || null,
+          cell_id: profile?.cell_id || null,
+          operatorId: opId,
+          reason: `Blocage SimProfile — ${fraudType || 'Fraude'} — Score ${initScore}`,
+          addLog,
+        });
+        if (blockResults.errors.length > 0) {
+          console.warn("Blocage partiel:", blockResults.errors.join(", "));
+        }
+        // Rafraîchir la page blocages
+        if (createBlocking) createBlocking({ msisdn: searchMsisdn }, opId);
+
+        // Mettre à jour l'état local
+        const allBlocked = {};
+        relatedAlerts.forEach(a => { allBlocked[a.id] = 'blocked'; });
+        setLocalAlertStatuses(allBlocked);
+        addLog?.('BLOCK_SIM', 'msisdn', searchMsisdn,
+          `Blocage ${searchMsisdn} — ${relatedAlerts.length} alerte(s) bloquées`, 'SimProfile');
+      } else {
+        // Pour les autres actions — seulement l'alerte cliquée
+        setLocalAlertStatuses(p => ({ ...p, [alertId]: newStatus }));
+      }
+
+      setActionDone({ alertId, action, newStatus });
+      setTimeout(() => setActionDone(null), 3000);
+
+      // Retour auto si action terminale
+      if (['blocked', 'false_positive', 'cleared'].includes(newStatus) && onBack) {
+        setTimeout(() => onBack(), 1500);
+      }
+    } catch (err) {
+      console.error('Action error:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  }
 
   const QUICK = ["221776540001", "221776300001", "221775430001", "221778901001"];
 
@@ -394,30 +483,213 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
 
             <Card style={{ flex: 1, overflow: "hidden" }}>
               <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.mutedL}`,
-                fontSize: 13, fontWeight: 700, color: C.navy }}>
-                Alertes liées ({relatedAlerts.length})
+                fontSize: 13, fontWeight: 700, color: C.navy, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Alertes liées ({relatedAlerts.length})</span>
+                {actionDone && (
+                  <span style={{ fontSize: 11, color: C.success, fontWeight: 600 }}>
+                    ✅ {statusLabel(actionDone.newStatus)} — retour dans 1s
+                  </span>
+                )}
               </div>
               {relatedAlerts.length === 0
                 ? <div style={{ padding: 20, color: C.muted, fontSize: 12 }}>Aucune alerte associée</div>
-                : relatedAlerts.map((a, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between",
-                    alignItems: "center", padding: "10px 16px", borderBottom: `1px solid ${C.mutedL}` }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>{a.fraud_type}</div>
-                      <div style={{ fontSize: 10, color: C.muted }}>
-                        {a.triggered_rule_name || "—"} · {a.detected_at ? new Date(a.detected_at).toLocaleDateString("fr-FR") : "—"}
+                : relatedAlerts.map((a, i) => {
+                  const currentStatus = localAlertStatuses[a.id] || a.status;
+                  const isActive = !['blocked','false_positive','cleared'].includes(currentStatus);
+                  return (
+                    <div key={i} style={{
+                      padding: "12px 16px", borderBottom: `1px solid ${C.mutedL}`,
+                      background: !isActive ? C.bg : C.white,
+                    }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: isActive ? 10 : 0 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{a.fraud_type}</div>
+                          <div style={{ fontSize: 10, color: C.muted }}>
+                            {a.detected_at ? new Date(a.detected_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 15, fontWeight: 900,
+                            color: (a.score || 0) >= 80 ? C.danger : C.warning }}>{a.score}</span>
+                          <Badge label={statusLabel(currentStatus)} color={statusColor(currentStatus)} small />
+                        </div>
                       </div>
+                      {/* Boutons d'action — visibles seulement si alerte active */}
+                      {isActive && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          <button
+                            disabled={!!actionLoading}
+                            onClick={() => handleAlertAction(a.id, 'block', a.operator_id)}
+                            style={{ padding: "5px 12px", background: C.dangerL, border: `1px solid ${C.danger}44`,
+                              color: C.danger, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            {actionLoading === a.id + 'block' ? '...' : '🚫 Bloquer'}
+                          </button>
+                          <button
+                            disabled={!!actionLoading}
+                            onClick={() => handleAlertAction(a.id, 'investigate', a.operator_id)}
+                            style={{ padding: "5px 12px", background: C.warningL, border: `1px solid ${C.warning}44`,
+                              color: C.warning, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            {actionLoading === a.id + 'investigate' ? '...' : '🔍 En cours'}
+                          </button>
+                          <button
+                            disabled={!!actionLoading}
+                            onClick={() => handleAlertAction(a.id, 'false_positive', a.operator_id)}
+                            style={{ padding: "5px 12px", background: C.skyL, border: `1px solid ${C.sky}44`,
+                              color: C.sky, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            {actionLoading === a.id + 'false_positive' ? '...' : '✓ Faux positif'}
+                          </button>
+                          <button
+                            disabled={!!actionLoading}
+                            onClick={() => handleAlertAction(a.id, 'clear', a.operator_id)}
+                            style={{ padding: "5px 12px", background: C.successL, border: `1px solid ${C.success}44`,
+                              color: C.success, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            {actionLoading === a.id + 'clear' ? '...' : '✅ Clôturer'}
+                          </button>
+                        </div>
+                      )}
+                      {!isActive && (
+                        <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic" }}>
+                          Alerte traitée — retirée des détections actives
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 900,
-                        color: (a.score || 0) >= 80 ? C.danger : C.warning }}>{a.score}</span>
-                      <Badge label={statusLabel(a.status)} color={statusColor(a.status)} small />
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               }
+              {/* Bouton bloquer le MSISDN globalement */}
+              {relatedAlerts.length > 0 && (
+                <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.mutedL}`, background: C.bg }}>
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm(`Bloquer définitivement ${searchMsisdn} sur toutes ses alertes ?`)) return;
+                      for (const a of relatedAlerts) {
+                        const s = localAlertStatuses[a.id] || a.status;
+                        if (!['blocked','false_positive','cleared'].includes(s)) {
+                          await handleAlertAction(a.id, 'block', a.operator_id);
+                        }
+                      }
+                    }}
+                    style={{ width: "100%", padding: "8px", background: C.danger, border: "none",
+                      color: C.white, borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                    🚫 Bloquer {searchMsisdn} — toutes les alertes
+                  </button>
+                </div>
+              )}
             </Card>
           </div>
+
+          {/* ── Actions sur le profil — Listes ── */}
+          <Card style={{ padding: "16px 20px", marginBottom: 14, borderLeft: `4px solid ${C.purple}` }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
+              🛡️ Actions sur ce profil
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              {/* MSISDN */}
+              <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>
+                  MSISDN — {profile.msisdn}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {[
+                    { label: "🚫 Blacklister", list: "blacklist", color: C.danger },
+                    { label: "✅ Whitelister", list: "whitelist", color: C.success },
+                    { label: "👁 Watchlist",   list: "watchlist", color: C.warning },
+                  ].map(opt => (
+                    <button key={opt.list}
+                      onClick={async () => {
+                        if (!window.confirm(`${opt.label} le MSISDN ${profile.msisdn} ?`)) return;
+                        const opId = relatedAlerts[0]?.operator_id || null;
+                        const { data: d1, error: e1 } = await supabase.from("control_lists").insert([{
+                          list_type: opt.list, entry_type: "msisdn",
+                          value: profile.msisdn, reason: `SimProfile — ${opt.list}`, active: true,
+                        }]).select();
+                        if (e1) { alert(`Erreur: ${e1.message}`); return; }
+                        // Refresh la liste
+                        if (addEntry) addEntry({ list: opt.list, type: "msisdn", value: profile.msisdn, reason: `SimProfile` }, opId);
+                        addLog?.(`${opt.list.toUpperCase()}_MSISDN`, "control_list", profile.msisdn,
+                          `${opt.label} MSISDN ${profile.msisdn}`, "SimProfile");
+                        alert(`✅ ${profile.msisdn} ajouté en ${opt.list}`);
+                      }}
+                      style={{ padding: "6px 10px", background: opt.color + "15",
+                        border: `1px solid ${opt.color}44`, color: opt.color,
+                        borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "left" }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* IMEI */}
+              {profile.imei && (
+                <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>
+                    IMEI — {profile.imei?.slice(0, 8)}…
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {[
+                      { label: "🚫 Blacklister IMEI", list: "blacklist", color: C.danger },
+                      { label: "👁 Surveiller IMEI",  list: "watchlist", color: C.warning },
+                    ].map(opt => (
+                      <button key={opt.list}
+                        onClick={async () => {
+                          if (!window.confirm(`${opt.label} l'IMEI ${profile.imei} ?`)) return;
+                          const opId = relatedAlerts[0]?.operator_id || null;
+                          const { error: e2 } = await supabase.from("control_lists").insert([{
+                            list_type: opt.list, entry_type: "imei",
+                            value: profile.imei, reason: `SimProfile — ${opt.list} IMEI`, active: true,
+                          }]).select();
+                          if (e2) { alert(`Erreur IMEI: ${e2.message}`); return; }
+                          if (addEntry) addEntry({ list: opt.list, type: "imei", value: profile.imei, reason: `SimProfile IMEI` }, opId);
+                          addLog?.(`${opt.list.toUpperCase()}_IMEI`, "control_list", profile.imei,
+                            `${opt.label} IMEI ${profile.imei}`, "SimProfile");
+                          alert(`✅ IMEI ${profile.imei?.slice(0,8)}... ajouté en ${opt.list}`);
+                        }}
+                        style={{ padding: "6px 10px", background: opt.color + "15",
+                          border: `1px solid ${opt.color}44`, color: opt.color,
+                          borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "left" }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cell ID */}
+              {profile.cell_id && (
+                <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 8 }}>
+                    Cell ID — {profile.cell_id}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {[
+                      { label: "🚫 Blacklister Cell", list: "blacklist", color: C.danger },
+                      { label: "👁 Surveiller Cell",  list: "watchlist", color: C.warning },
+                    ].map(opt => (
+                      <button key={opt.list}
+                        onClick={async () => {
+                          if (!window.confirm(`${opt.label} le Cell ID ${profile.cell_id} ?`)) return;
+                          const opId = relatedAlerts[0]?.operator_id || null;
+                          const { error: e3 } = await supabase.from("control_lists").insert([{
+                            list_type: opt.list, entry_type: "cell_id",
+                            value: profile.cell_id, reason: `SimProfile — ${opt.list} Cell`, active: true,
+                          }]).select();
+                          if (e3) { alert(`Erreur Cell: ${e3.message}`); return; }
+                          if (addEntry) addEntry({ list: opt.list, type: "cell_id", value: profile.cell_id, reason: `SimProfile Cell` }, opId);
+                          addLog?.(`${opt.list.toUpperCase()}_CELL`, "control_list", profile.cell_id,
+                            `${opt.label} Cell ${profile.cell_id}`, "SimProfile");
+                          alert(`✅ Cell ${profile.cell_id} ajouté en ${opt.list}`);
+                        }}
+                        style={{ padding: "6px 10px", background: opt.color + "15",
+                          border: `1px solid ${opt.color}44`, color: opt.color,
+                          borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "left" }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
 
           {/* SIM Swaps + Antennes */}
           <div style={{ display: "flex", gap: 14 }}>
