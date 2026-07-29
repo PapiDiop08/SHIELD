@@ -51,7 +51,7 @@ ACTIFS : ${JSON.stringify(activeBlockings.slice(0, 30), null, 1)}
 TOUS : ${JSON.stringify(blockings.slice(0, 40), null, 1)}`,
 
     cells: `Tu es un expert fraude télécom. Analyse les données liées aux antennes dans ces alertes :
-${JSON.stringify(activeAlerts.filter(a => a.cell_id).slice(0, 40), null, 1)}`,
+${JSON.stringify(activeAlerts.filter(a => a.cellId).slice(0, 40), null, 1)}`,
 
     blacklist: `Tu es un expert fraude télécom. Analyse ces listes de contrôle SHIELD :
 ${JSON.stringify(blacklist.slice(0, 40), null, 1)}`,

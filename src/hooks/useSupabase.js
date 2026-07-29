@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase.js';
+import { MOCK_OPERATORS, MOCK_ALERTS } from '../mockData.js';
 
 
 // ── Operators ─────────────────────────────────────────────────────────────
@@ -300,9 +301,10 @@ export function useControlLists(operatorFilter) {
       .order('created_at', { ascending: false });
     if (operatorFilter) query = query.eq('operator_id', operatorFilter);
     const { data, error } = await query;
+    const ENTRY_TYPE_NORM = { msisdn:"MSISDN", imsi:"IMSI", imei:"IMEI", imei_prefix:"IMEI Préfixe", prefix:"Préfixe numéro", cell_id:"Cell ID / BTS", pays:"Pays", cdr_field:"Champ CDR" };
     if (!error && data) {
       setBlacklistState(data.map(e => ({
-        id: e.id, list: e.list_type, type: e.entry_type, value: e.value,
+        id: e.id, list: e.list_type, type: ENTRY_TYPE_NORM[e.entry_type] || e.entry_type, value: e.value,
         reason: e.reason, addedBy: e.added_by,
         date: e.created_at?.slice(0,10), active: e.active,
         matches: e.matches || 0, lastMatch: e.last_match,
@@ -445,7 +447,7 @@ export function useDashboardStats(operatorId = null) {
       // Blocages actifs
       const { count: activeBlockings } = await opFilter(
         supabase.from('blockings').select('*', { count: 'exact', head: true })
-          .eq('status', 'active')
+          .eq('active', true)
       );
 
       setStats({
@@ -699,13 +701,13 @@ export function useCellAnomalies(operatorId = null) {
   const fetchCellStats = async (cellId) => {
     const { data } = await supabase
       .from('cdr_voice')
-      .select('msisdn, duration, fraud_flag')
+      .select('msisdn, duration, fraud_flag, tx_status, duration_sec')
       .eq('cell_id', cellId)
       .limit(500);
     if (!data) return null;
     const uniqueSims = new Set(data.map(r => r.msisdn)).size;
-    const suspiciousSims = data.filter(r => r.tx_status === "failed").length;
-    const avgDuration = data.reduce((s, r) => s + (r.duration_sec || 0), 0) / (data.length || 1);
+    const suspiciousSims = data.filter(r => r.tx_status === "failed" || r.fraud_flag === true).length;
+    const avgDuration = data.reduce((s, r) => s + (r.duration_sec || r.duration || 0), 0) / (data.length || 1);
     return { uniqueSims, suspiciousSims, avgDuration: Math.round(avgDuration), callCount: data.length };
   };
 
@@ -833,7 +835,7 @@ export function useBillingStats() {
         const { count: blockings } = await supabase
           .from('blockings').select('*', { count: 'exact', head: true })
           .eq('operator_id', op.id)
-          .eq('status', 'active');
+          .eq('active', true);
 
         const { data: aiData } = await supabase
           .from('ai_usage').select('tokens_used, cost_usd')

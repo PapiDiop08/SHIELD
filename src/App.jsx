@@ -16,6 +16,7 @@ import UDFManager from "./pages/UDFManager.jsx";
 import Settings from "./pages/Settings.jsx";
 import Operators from "./pages/Operators.jsx";
 import Blockings from "./pages/Blockings.jsx";
+import AIAnalysis from "./pages/AIAnalysis.jsx";
 import Billing from "./pages/Billing.jsx";
 import Distributors from "./pages/Distributors.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
@@ -172,7 +173,7 @@ function AppInner() {
       {page === "settings"   && <Settings   {...sharedProps} />}
       {page === "operators"  && <Operators  {...sharedProps} />}
       {page === "blockings"  && <Blockings  {...sharedProps} />}
-      {page === "ai"         && null}
+      {page === "ai"         && <AIAnalysis {...sharedProps} />}
       {page === "billing"       && <Billing      {...sharedProps} />}
       {page === "distributors"  && <Distributors {...sharedProps} />}
     </Layout>

@@ -113,7 +113,6 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
         await blockAndBlacklist({ msisdn: searchMsisdn, imei: profile?.imei, imsi: profile?.imsi,
           cell_id: profile?.cell_id, operatorId: relatedAlerts[0]?.operator_id || null,
           reason: `Blocage SimProfile — ${fraudType || 'Fraude'} — Score ${initScore}`, addLog });
-        if (createBlocking) createBlocking({ msisdn: searchMsisdn }, relatedAlerts[0]?.operator_id || null);
         const allBlocked = {};
         relatedAlerts.forEach(a => { allBlocked[a.id] = 'blocked'; });
         setLocalAlertStatuses(allBlocked);

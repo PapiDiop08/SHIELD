@@ -8,7 +8,7 @@ const BL_TYPES = ["MSISDN","IMSI","IMEI","IMEI Préfixe","Préfixe numéro","Cel
 const TAB_COLOR = { blacklist:C.danger,whitelist:C.success,watchlist:C.warning,greylist:C.muted };
 const TAB_LABEL = { blacklist:"Blacklist",whitelist:"Whitelist",watchlist:"Watchlist",greylist:"Greylist" };
 
-export default function Lists({ blacklist, setBlacklist, setSimProfile, users, addLog }) {
+export default function Lists({ blacklist, setBlacklist, setSimProfile, users, addLog, addEntry, toggleEntry, deleteEntry, moveEntry }) {
   const { currentUser, can } = useAuth();
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState([]);
@@ -54,9 +54,9 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
   const wa = blacklist.filter(e=>e.list==="watchlist");
   const gl = blacklist.filter(e=>e.list==="greylist");
 
-  function toggleEntry(id){ setBlacklist(p=>p.map(e=>e.id===id?{...e,active:!e.active}:e)); }
-  function deleteEntry(id){ setBlacklist(p=>p.filter(e=>e.id!==id)); showToast("Supprimé"); }
-  function moveEntry(id,target){ setBlacklist(p=>p.map(e=>e.id===id?{...e,list:target}:e)); showToast(`→ ${TAB_LABEL[target]}`,TAB_COLOR[target]); }
+  function handleToggle(id){ setBlacklist(p=>{ const e=p.find(x=>x.id===id); if(toggleEntry) toggleEntry(id, !e?.active); return p.map(x=>x.id===id?{...x,active:!x.active}:x); }); }
+  function handleDelete(id){ setBlacklist(p=>p.filter(e=>e.id!==id)); if(deleteEntry) deleteEntry(id); showToast("Supprimé"); }
+  function handleMove(id,target){ setBlacklist(p=>p.map(e=>e.id===id?{...e,list:target}:e)); if(moveEntry) moveEntry(id,target); showToast(`→ ${TAB_LABEL[target]}`,TAB_COLOR[target]); }
 
   function doGroupAction(action){
     if(action==="delete"){ setBlacklist(p=>p.filter(e=>!selected.includes(e.id))); showToast(`${selected.length} supprimés`); }
@@ -67,10 +67,11 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
     setSelected([]);
   }
 
-  function addEntry(){
+  function handleAdd(){
     const targetList = activeTab === "all" ? "blacklist" : activeTab;
     const entry={ id:Date.now(),list:targetList,type:addForm.type,value:addForm.value,reason:addForm.reason,addedBy:currentUser?.id,date:new Date().toISOString().slice(0,10),active:true,matches:0,lastMatch:null,...(targetList==="watchlist"?{daysLeft:addForm.daysWatch}:{}) };
     setBlacklist(p=>[entry,...p]);
+    if(addEntry) addEntry(entry);
     addLog?.("ADD_"+targetList.toUpperCase(),targetList,entry.id,`Ajout ${addForm.type} ${addForm.value} — ${addForm.reason}`,"Listes");
     setShowAdd(false); setAddForm({type:"MSISDN",value:"",reason:"",daysWatch:7});
     showToast(`Ajouté`,TAB_COLOR[targetList]||C.navy);
@@ -260,7 +261,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
                     <td style={{ padding:"10px",fontSize:11,color:C.muted,whiteSpace:"nowrap" }}>{e.date}</td>
                     <td style={{ padding:"10px",textAlign:"center" }}>{e.matches>0?<span style={{ fontSize:15,fontWeight:900,color:TAB_COLOR[activeTab] }}>{e.matches}</span>:<span style={{ color:C.muted }}>—</span>}</td>
                     <td style={{ padding:"10px" }}>
-                      <button onClick={()=>toggleEntry(e.id)} style={{ background:e.active?C.successL:C.mutedL,border:`1px solid ${e.active?C.success:C.muted}44`,color:e.active?C.success:C.muted,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>
+                      <button onClick={()=>handleToggle(e.id)} style={{ background:e.active?C.successL:C.mutedL,border:`1px solid ${e.active?C.success:C.muted}44`,color:e.active?C.success:C.muted,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>
                         {e.active?"● Actif":"○ Inactif"}
                       </button>
                     </td>
@@ -304,11 +305,11 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
             <div style={{ borderTop:`1px solid ${C.mutedL}`,paddingTop:12 }}>
               <div style={{ fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase" }}>Actions</div>
               <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
-                <Btn variant={detailEntry.active?"warning":"success"} small onClick={()=>{toggleEntry(detailEntry.id);setDetailEntry(null);}}>{detailEntry.active?"⏸ Désactiver":"▶ Activer"}</Btn>
-                {activeTab==="blacklist"&&<Btn variant="success" small onClick={()=>{moveEntry(detailEntry.id,"whitelist");setDetailEntry(null);}}>OK → WL</Btn>}
-                {activeTab==="blacklist"&&<Btn variant="purple" small onClick={()=>{moveEntry(detailEntry.id,"watchlist");setDetailEntry(null);}}>→ WA</Btn>}
-                {activeTab!=="blacklist"&&<Btn variant="danger" small onClick={()=>{moveEntry(detailEntry.id,"blacklist");setDetailEntry(null);}}>→ BL</Btn>}
-                <Btn variant="ghost" small onClick={()=>{deleteEntry(detailEntry.id);setDetailEntry(null);}}>Del Supprimer</Btn>
+                <Btn variant={detailEntry.active?"warning":"success"} small onClick={()=>{handleToggle(detailEntry.id);setDetailEntry(null);}}>{detailEntry.active?"⏸ Désactiver":"▶ Activer"}</Btn>
+                {activeTab==="blacklist"&&<Btn variant="success" small onClick={()=>{handleMove(detailEntry.id,"whitelist");setDetailEntry(null);}}>OK → WL</Btn>}
+                {activeTab==="blacklist"&&<Btn variant="purple" small onClick={()=>{handleMove(detailEntry.id,"watchlist");setDetailEntry(null);}}>→ WA</Btn>}
+                {activeTab!=="blacklist"&&<Btn variant="danger" small onClick={()=>{handleMove(detailEntry.id,"blacklist");setDetailEntry(null);}}>→ BL</Btn>}
+                <Btn variant="ghost" small onClick={()=>{handleDelete(detailEntry.id);setDetailEntry(null);}}>Del Supprimer</Btn>
               </div>
             </div>
           </div>
@@ -335,7 +336,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
             )}
             <div style={{ display:"flex",gap:8 }}>
               <Btn variant="ghost" onClick={()=>setShowAdd(false)} style={{ flex:1,justifyContent:"center" }}>Annuler</Btn>
-              <Btn onClick={addEntry} disabled={!addForm.value} style={{ flex:2,justifyContent:"center",background:TAB_COLOR[activeTab],border:"none",color:C.white }}>Ajouter</Btn>
+              <Btn onClick={handleAdd} disabled={!addForm.value} style={{ flex:2,justifyContent:"center",background:TAB_COLOR[activeTab],border:"none",color:C.white }}>Ajouter</Btn>
             </div>
           </div>
         </Modal>
@@ -404,7 +405,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
       {/* Confirm */}
       {confirm&&(
         <ConfirmModal title="Confirmation" message={confirm.msg} confirmLabel="Confirmer" confirmColor={C.danger}
-          onConfirm={()=>{ if(confirm.action==="delete")doGroupAction("delete"); if(confirm.action==="delete_one")deleteEntry(confirm.id); setConfirm(null); }}
+          onConfirm={()=>{ if(confirm.action==="delete")doGroupAction("delete"); if(confirm.action==="delete_one")handleDelete(confirm.id); setConfirm(null); }}
           onCancel={()=>setConfirm(null)} />
       )}
     </div>

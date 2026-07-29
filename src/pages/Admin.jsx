@@ -44,7 +44,7 @@ const PERM_CATEGORIES = {
   "IA & Facturation": ["accessAI","viewBilling"],
 };
 
-export default function Admin({ users, setUsers, operators, addLog }) {
+export default function Admin({ users, setUsers, operators, addLog, createUser }) {
   const { currentUser, can } = useAuth();
   const [tab, setTab] = useState("users");
   const [showCreate, setShowCreate] = useState(false);
@@ -73,13 +73,14 @@ export default function Admin({ users, setUsers, operators, addLog }) {
     const q = search.toLowerCase();
     const matchSearch = u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q);
     const matchRole = filterRole==="all"||u.role===filterRole;
-    const matchOp = filterOp==="all"||(filterOp==="gfm"&&!u.operator)||(u.operator===filterOp);
+    const matchOp = filterOp==="all"||(filterOp==="gfm"&&!u.operator)||(filterOp==="aar"&&!u.operator)||(u.operator===filterOp);
     return matchSearch&&matchRole&&matchOp;
   });
 
-  function createUser() {
+  function handleCreateUser() {
     const u = { id:`u${Date.now()}`,...newUser,active:true,lastLogin:"—",avatar:newUser.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),createdAt:new Date().toISOString().slice(0,10) };
     setUsers(p=>[...p,u]);
+    if (createUser) createUser(u, null);
     addLog("CREATE_USER","user",u.id,`Création ${u.name} — ${u.role}`,"Admin");
     setShowCreate(false);
     setNewUser({name:"",email:"",role:"analyst",operator:""});
@@ -355,7 +356,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
             </div>
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" onClick={()=>setShowCreate(false)} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>
-              <Btn onClick={createUser} disabled={!newUser.name||!newUser.email} style={{flex:2,justifyContent:"center"}}>USR Créer et inviter</Btn>
+              <Btn onClick={handleCreateUser} disabled={!newUser.name||!newUser.email} style={{flex:2,justifyContent:"center"}}>USR Créer et inviter</Btn>
             </div>
           </div>
         </Modal>

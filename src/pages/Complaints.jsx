@@ -93,7 +93,7 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
   async function handleAnalyzeComplaint(c) {
     setAnalyzingId(c.id);
     try {
-      const result = await analyzeComplaintWithOllama(c.raw_text || c.texte || "", c.msisdn_reported || c.msisdn);
+      const result = await analyzeComplaintWithOllama(c.raw || c.texte || "", c.msisdn_reported || c.msisdn);
       if (result) {
         // Mettre à jour AAR DB
         await supabase.from("complaints").update({
@@ -152,13 +152,12 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
     try {
       const operator = currentUser?.operator || null;
       await supabase.from("blockings").insert({
-        id: `b_auto_${Date.now()}`,
         msisdn,
         reason: `Auto-blocage — ${threshold} plaintes ou plus sur ce numéro`,
-        operator,
+        operator_id: operator,
         active: true,
         source: "auto",
-        date: new Date().toISOString().slice(0, 10),
+        blocked_at: new Date().toISOString(),
       });
       await supabase.from("complaints")
         .update({ auto_blocked: true })
