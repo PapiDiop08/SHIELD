@@ -415,9 +415,6 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
               <KPI label="Antennes distinctes" value={cellMovements.length}        color={cellMovements.length===1?C.danger:C.teal} sub={cellMovements.length===1?"⚠️ SIM Box possible":undefined} />
               <KPI label="SIM Swaps"         value={simSwaps.length}               color={simSwaps.length>0?C.danger:C.success} />
               <KPI label="Alertes liées"     value={effectiveAlerts.length}           color={effectiveAlerts.length>0?C.danger:C.success} />
-              <KPI label="Score SIM Box"     value={Math.round(profile.score_simbox||0)} color={(profile.score_simbox||0)>=70?C.danger:(profile.score_simbox||0)>=40?C.warning:C.success} />
-              <KPI label="Score Wangiri"     value={Math.round(profile.score_wangiri||0)} color={(profile.score_wangiri||0)>=70?C.danger:(profile.score_wangiri||0)>=40?C.warning:C.success} />
-              <KPI label="Score IRSF"        value={Math.round(profile.score_irsf||0)} color={(profile.score_irsf||0)>=70?C.danger:(profile.score_irsf||0)>=40?C.warning:C.success} />
             </div>
 
             {/* Indicateurs de risque */}
