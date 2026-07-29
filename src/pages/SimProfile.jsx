@@ -66,6 +66,44 @@ async function applyAlertAction(alertId, action, msisdn, operatorId, addLog) {
   return newStatus;
 }
 
+// ── Calcul scores fraude depuis données CDR + vue ─────────────────────────
+function computeScores(view, cellMoves, swapCount) {
+  const n       = view.call_out_count || 0;
+  const shorts  = view.short_calls    || 0;
+  const intl    = view.intl_calls     || 0;
+  const premium = view.premium_calls  || 0;
+  const cells   = view.unique_cells   || cellMoves.length || 1;
+  const dur     = view.avg_duration_sec || 0;
+  const swaps   = swapCount || view.sim_swap_count || 0;
+
+  // SIM Box : 1 seule antenne + volume élevé + durée courte-moyenne
+  const simbox = Math.min(100, Math.round(
+    (cells === 1 ? 50 : cells <= 2 ? 20 : 0) +
+    Math.min(30, (n / 150) * 30) +
+    (dur >= 10 && dur <= 60 ? 20 : dur < 10 && dur > 0 ? 10 : 0)
+  ));
+
+  // Wangiri : beaucoup de courts + premium
+  const wangiri = n > 0 ? Math.min(100, Math.round(
+    (shorts / n) * 60 +
+    (premium / Math.max(n, 1)) * 40
+  )) : 0;
+
+  // IRSF : international + premium + longue durée
+  const irsf = n > 0 ? Math.min(100, Math.round(
+    (intl / n) * 35 +
+    (premium / Math.max(n, 1)) * 35 +
+    (dur > 180 ? 30 : dur > 60 ? 15 : 0)
+  )) : 0;
+
+  // ATO : SIM swap + comportement changé
+  const ato = Math.min(100, Math.round(
+    swaps > 0 ? 50 + Math.min(40, swaps * 20) : 0
+  ));
+
+  return { score_simbox: simbox, score_wangiri: wangiri, score_irsf: irsf, score_ato: ato };
+}
+
 // ── Hook données SIM ───────────────────────────────────────────────────────
 function useSimProfile(msisdn) {
   const [profile, setProfile]         = useState(null);
@@ -82,25 +120,76 @@ function useSimProfile(msisdn) {
     try {
       const [simRes, cdrRes, swapRes, alertRes, cellRes] = await Promise.all([
         supabase.from("v_sim_profile").select("*").eq("msisdn", target).maybeSingle(),
-        supabase.from("cdr_voice").select("msisdn_a,msisdn_b,imsi,imei,cell_id,duration_sec,start_time,call_type,is_international,is_premium").eq("msisdn_a", target).order("start_time", { ascending: false }).limit(20),
-        supabase.from("sim_swap_history").select("msisdn,old_imsi,new_imsi,old_imei,new_imei,swap_reason,swap_channel,swapped_at").eq("msisdn", target).order("swapped_at", { ascending: false }),
-        supabase.from("alerts").select("id,fraud_type,status,score,detected_at,operator_id").eq("msisdn", target).order("detected_at", { ascending: false }).limit(10),
+        supabase.from("cdr_voice")
+          .select("msisdn_a,msisdn_b,imsi,imei,cell_id,duration_sec,start_time,call_type,is_international,is_premium,country_code_b")
+          .eq("msisdn_a", target).order("start_time", { ascending: false }).limit(50),
+        supabase.from("sim_swap_history")
+          .select("msisdn,old_imsi,new_imsi,old_imei,new_imei,swap_reason,swap_channel,swapped_at")
+          .eq("msisdn", target).order("swapped_at", { ascending: false }),
+        // ← Colonnes réelles : date et created_at (pas detected_at)
+        supabase.from("alerts")
+          .select("id,fraud_type,type,status,score,severity,date,created_at,operator_id,reason")
+          .eq("msisdn", target).order("created_at", { ascending: false }).limit(10),
         supabase.from("cdr_voice").select("cell_id").eq("msisdn_a", target).limit(500),
       ]);
-      const cdrVoice = cdrRes.data || [];
+
+      const cdrVoice = cdrRes.data  || [];
       const swaps    = swapRes.data || [];
       const alerts   = alertRes.data || [];
       const cellsRaw = cellRes.data || [];
+
+      // Antennes
       const cellCount = {};
       cellsRaw.forEach(r => { if (r.cell_id) cellCount[r.cell_id] = (cellCount[r.cell_id]||0)+1; });
       const cellMoves = Object.entries(cellCount).map(([cellId, count]) => ({ cellId, count })).sort((a,b) => b.count - a.count);
-      const enriched = simRes.data || (cdrVoice.length > 0 ? {
-        msisdn: target, imei: cdrVoice[0]?.imei||null, imsi: cdrVoice[0]?.imsi||null,
-        cell_id: cellMoves[0]?.cellId||null, call_out_count: cdrVoice.length, call_in_count: 0,
-        avg_duration_out: cdrVoice.reduce((s,r)=>s+(r.duration_sec||0),0)/(cdrVoice.length||1),
-        sms_out_count: 0, velocity_calls_per_min: 0, distinct_cell_ids: cellMoves.length,
-        cell_id_fixed: cellMoves.length===1, score_simbox: 0, score_wangiri: 0, score_ato: 0, score_irsf: 0,
-      } : null);
+
+      const maxAlertScore = alerts.reduce((m, a) => Math.max(m, a.score||0), 0);
+
+      let enriched;
+      if (simRes.data) {
+        // Vue existe — normaliser les noms de colonnes + calculer scores
+        const v = simRes.data;
+        const scores = computeScores(v, cellMoves, swaps.length);
+        enriched = {
+          msisdn:           v.msisdn,
+          imei:             v.imei || cdrVoice[0]?.imei || null,
+          imsi:             v.imsi || cdrVoice[0]?.imsi || null,
+          cell_id:          cellMoves[0]?.cellId || null,
+          call_out_count:   v.call_out_count || 0,
+          call_in_count:    0,
+          avg_duration_out: v.avg_duration_sec || 0,   // ← bonne colonne vue
+          sms_out_count:    v.sms_count || 0,
+          velocity_calls_per_min: 0,
+          call_intl_out_count: v.intl_calls || 0,
+          distinct_cell_ids: v.unique_cells || cellMoves.length,
+          cell_id_fixed:    (v.unique_cells || cellMoves.length) === 1,
+          ...scores,  // score_simbox, score_wangiri, score_irsf, score_ato calculés
+          _maxAlertScore: maxAlertScore,
+        };
+      } else if (cdrVoice.length > 0 || alerts.length > 0) {
+        // Pas de vue — tout calculer depuis CDR bruts
+        const shorts  = cdrVoice.filter(r => (r.duration_sec||0) < 3).length;
+        const intlN   = cdrVoice.filter(r => r.is_international).length;
+        const premN   = cdrVoice.filter(r => r.is_premium).length;
+        const avgDur  = cdrVoice.reduce((s,r) => s+(r.duration_sec||0), 0) / (cdrVoice.length||1);
+        const fakeView = {
+          call_out_count: cdrVoice.length, short_calls: shorts,
+          intl_calls: intlN, premium_calls: premN,
+          avg_duration_sec: avgDur, unique_cells: cellMoves.length,
+          sim_swap_count: swaps.length,
+        };
+        const scores = computeScores(fakeView, cellMoves, swaps.length);
+        enriched = {
+          msisdn: target, imei: cdrVoice[0]?.imei||null, imsi: cdrVoice[0]?.imsi||null,
+          cell_id: cellMoves[0]?.cellId||null,
+          call_out_count: cdrVoice.length, call_in_count: 0,
+          avg_duration_out: avgDur, sms_out_count: 0, velocity_calls_per_min: 0,
+          call_intl_out_count: intlN,
+          distinct_cell_ids: cellMoves.length, cell_id_fixed: cellMoves.length === 1,
+          ...scores, _maxAlertScore: maxAlertScore,
+        };
+      } else { enriched = null; }
+
       setProfile(enriched); setCdrHistory(cdrVoice); setSimSwaps(swaps); setRelAlerts(alerts); setCells(cellMoves);
     } catch(err) { setError(err.message); }
     finally { setLoading(false); }
@@ -135,9 +224,18 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
 
   const suspectMsisdns = [...new Set((propAlerts||[]).filter(a=>a.msisdn).map(a=>a.msisdn))].slice(0,5);
 
-  const globalRisk = profile
+  // Alertes depuis propAlerts en fallback si la query DB ne retourne rien
+  const propAlertsForMsisdn = (propAlerts||[]).filter(a =>
+    a.msisdn === searchMsisdn || a.msisdn_a === searchMsisdn || a.subject === searchMsisdn
+  );
+  const effectiveAlerts = relatedAlerts.length > 0 ? relatedAlerts : propAlertsForMsisdn;
+
+  // Score global = max(scores DB, max alertes, initScore passé en prop)
+  const dbMaxScore = profile
     ? Math.max(profile.score_simbox||0, profile.score_wangiri||0, profile.score_ato||0, profile.score_irsf||0)
-    : (initScore||0);
+    : 0;
+  const alertMaxScore = effectiveAlerts.reduce((m, a) => Math.max(m, a.score||0), 0);
+  const globalRisk = Math.max(dbMaxScore, alertMaxScore, (profile?._maxAlertScore||0), (!profile ? (initScore||0) : 0));
   const riskColor = globalRisk>=80?C.danger:globalRisk>=50?C.warning:globalRisk>=30?C.sky:C.success;
   const riskLabel = globalRisk>=80?"Critique":globalRisk>=50?"Élevé":globalRisk>=30?"Moyen":"Faible";
 
@@ -147,10 +245,10 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
       const newStatus = await applyAlertAction(alertId, action, searchMsisdn, operatorId, addLog);
       if (action==="block") {
         await blockAndBlacklist({ msisdn: searchMsisdn, imei: profile?.imei, imsi: profile?.imsi,
-          cell_id: profile?.cell_id, operatorId: relatedAlerts[0]?.operator_id||null,
+          cell_id: profile?.cell_id, operatorId: effectiveAlerts[0]?.operator_id||null,
           reason: `SimProfile — ${fraudType||"Fraude"} — Score ${initScore}`, addLog });
         const allBlocked = {};
-        relatedAlerts.forEach(a => { allBlocked[a.id] = "blocked"; });
+        effectiveAlerts.forEach(a => { allBlocked[a.id] = "blocked"; });
         setLocalStatuses(allBlocked);
       } else {
         setLocalStatuses(p => ({...p,[alertId]:newStatus}));
@@ -163,7 +261,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
 
   async function addToList(list, entity, value) {
     if (!window.confirm(`Ajouter ${value} en ${list} ?`)) return;
-    const opId = relatedAlerts[0]?.operator_id || null;
+    const opId = effectiveAlerts[0]?.operator_id || null;
     await supabase.from("control_lists").insert([{ list_type: list, entry_type: entity, value, reason: "SimProfile", active: true }]);
     addEntry?.({ list, type: entity, value, reason: "SimProfile" }, opId);
     addLog?.(`${list.toUpperCase()}_${entity.toUpperCase()}`, "control_list", value, `Ajout ${entity} → ${list}`, "SimProfile");
@@ -235,7 +333,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
             <div style={{ display:"flex",gap:6,padding:"10px 0",marginRight:24 }}>
               <button onClick={async()=>{
                 if(!window.confirm(`Bloquer ${searchMsisdn} ?`)) return;
-                if(relatedAlerts[0]) await handleAlertAction(relatedAlerts[0].id,"block",relatedAlerts[0].operator_id);
+                if(effectiveAlerts[0]) await handleAlertAction(effectiveAlerts[0].id,"block",effectiveAlerts[0].operator_id);
                 else { await blockAndBlacklist({msisdn:searchMsisdn,imei:profile?.imei,imsi:profile?.imsi,operatorId:null,reason:"Blocage manuel SimProfile",addLog}); setActionDone("blocked"); }
               }} style={{ display:"flex",alignItems:"center",gap:5,background:C.danger,border:"none",color:C.white,borderRadius:6,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer" }}>
                 <Icon name="blockings" size={12} color={C.white} /> Bloquer
@@ -259,7 +357,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                 <button key={t} onClick={()=>setTab(t)}
                   style={{ background:"none",border:"none",borderBottom:tab===t?`2px solid ${C.orange}`:"2px solid transparent",color:tab===t?C.white:C.muted,padding:"10px 16px",fontSize:12,fontWeight:tab===t?700:400,cursor:"pointer",letterSpacing:0.3 }}>
                   {t}
-                  {t==="Alertes"&&relatedAlerts.length>0&&<span style={{ marginLeft:5,background:C.danger,color:C.white,fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:8 }}>{relatedAlerts.length}</span>}
+                  {t==="Alertes"&&effectiveAlerts.length>0&&<span style={{ marginLeft:5,background:C.danger,color:C.white,fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:8 }}>{effectiveAlerts.length}</span>}
                   {t==="SIM & Antennes"&&simSwaps.length>0&&<span style={{ marginLeft:5,background:C.warning,color:C.white,fontSize:9,fontWeight:800,padding:"1px 5px",borderRadius:8 }}>{simSwaps.length}</span>}
                 </button>
               ))}
@@ -316,7 +414,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
               <KPI label="Appels intl."      value={profile.call_intl_out_count??0} color={profile.call_intl_out_count>50?C.warning:C.navy} />
               <KPI label="Antennes distinctes" value={cellMovements.length}        color={cellMovements.length===1?C.danger:C.teal} sub={cellMovements.length===1?"⚠️ SIM Box possible":undefined} />
               <KPI label="SIM Swaps"         value={simSwaps.length}               color={simSwaps.length>0?C.danger:C.success} />
-              <KPI label="Alertes liées"     value={relatedAlerts.length}           color={relatedAlerts.length>0?C.danger:C.success} />
+              <KPI label="Alertes liées"     value={effectiveAlerts.length}           color={effectiveAlerts.length>0?C.danger:C.success} />
               <KPI label="Score SIM Box"     value={Math.round(profile.score_simbox||0)} color={(profile.score_simbox||0)>=70?C.danger:(profile.score_simbox||0)>=40?C.warning:C.success} />
               <KPI label="Score Wangiri"     value={Math.round(profile.score_wangiri||0)} color={(profile.score_wangiri||0)>=70?C.danger:(profile.score_wangiri||0)>=40?C.warning:C.success} />
               <KPI label="Score IRSF"        value={Math.round(profile.score_irsf||0)} color={(profile.score_irsf||0)>=70?C.danger:(profile.score_irsf||0)>=40?C.warning:C.success} />
@@ -344,7 +442,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
               if((profile.score_irsf||0)>=70) flags.push({color:C.warning,text:`IRSF probable — ${Math.round(profile.score_irsf)}/100`,detail:"Trafic intl massif vers numéros surtaxés"});
               if(profile.cell_id_fixed) flags.push({color:C.warning,text:"Antenne fixe détectée",detail:`SIM toujours sur ${profile.cell_id} — indicateur SIM Box`});
               if(simSwaps.length>0) flags.push({color:C.danger,text:`${simSwaps.length} SIM Swap(s) détecté(s)`,detail:"Risque ATO élevé après changement de SIM"});
-              if(relatedAlerts.length>0) flags.push({color:C.danger,text:`${relatedAlerts.length} alerte(s) générée(s)`,detail:[...new Set(relatedAlerts.map(a=>a.fraud_type))].join(", ")});
+              if(effectiveAlerts.length>0) flags.push({color:C.danger,text:`${effectiveAlerts.length} alerte(s) générée(s)`,detail:[...new Set(effectiveAlerts.map(a=>a.fraud_type||a.fraudType))].filter(Boolean).join(", ")});
               if(flags.length===0) flags.push({color:C.success,text:"Aucun indicateur de fraude",detail:"Comportement normal"});
               return(
                 <Card style={{ padding:"14px 18px",borderLeft:`4px solid ${flags[0].color}` }}>
@@ -408,11 +506,11 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
         {!loading&&profile&&tab==="Alertes"&&(
           <Card style={{ padding:"16px 20px" }}>
             <div style={{ fontSize:13,fontWeight:700,color:C.navy,marginBottom:12 }}>
-              Alertes liées — {searchMsisdn} ({relatedAlerts.length})
+              Alertes liées — {searchMsisdn} ({effectiveAlerts.length})
             </div>
-            {relatedAlerts.length===0?(
+            {effectiveAlerts.length===0?(
               <div style={{ fontSize:12,color:C.muted,padding:"20px 0" }}>Aucune alerte directement liée à ce MSISDN.</div>
-            ):relatedAlerts.map((a,i)=>{
+            ):effectiveAlerts.map((a,i)=>{
               const curStatus=localStatuses[a.id]||a.status;
               const isActive=!["blocked","false_positive","cleared"].includes(curStatus);
               return(
@@ -420,8 +518,8 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                   <div style={{ display:"flex",alignItems:"center",gap:12 }}>
                     <div style={{ width:4,height:36,borderRadius:2,background:sevColor(a.severity||"medium"),flexShrink:0 }} />
                     <div style={{ flex:1,minWidth:0 }}>
-                      <div style={{ fontSize:12,fontWeight:700,color:C.navy }}>{a.fraud_type}</div>
-                      <div style={{ fontSize:11,color:C.muted,marginTop:1 }}>{a.detected_at?new Date(a.detected_at).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):"—"}</div>
+                      <div style={{ fontSize:12,fontWeight:700,color:C.navy }}>{a.fraud_type||a.fraudType||a.type||"Alerte fraude"}</div>
+                      <div style={{ fontSize:11,color:C.muted,marginTop:1 }}>{(a.created_at||a.detected_at||a.detectedAt||a.date)?new Date(a.created_at||a.detected_at||a.detectedAt||a.date).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):"—"}</div>
                     </div>
                     <div style={{ fontSize:16,fontWeight:900,color:(a.score||0)>=80?C.danger:C.warning,minWidth:36,textAlign:"right" }}>{a.score}</div>
                     <span style={{ background:statusColor(curStatus)+"22",color:statusColor(curStatus),fontSize:9,fontWeight:800,padding:"3px 8px",borderRadius:8,letterSpacing:0.5 }}>
@@ -439,12 +537,12 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                 </div>
               );
             })}
-            {relatedAlerts.length>0&&(
+            {effectiveAlerts.length>0&&(
               <div style={{ marginTop:16 }}>
                 <Btn variant="danger" style={{ width:"100%",justifyContent:"center" }}
                   onClick={async()=>{
                     if(!window.confirm(`Bloquer définitivement ${searchMsisdn} et toutes ses alertes ?`)) return;
-                    for(const a of relatedAlerts){
+                    for(const a of effectiveAlerts){
                       const s=localStatuses[a.id]||a.status;
                       if(!["blocked","false_positive","cleared"].includes(s)) await handleAlertAction(a.id,"block",a.operator_id);
                     }
