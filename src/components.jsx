@@ -7,7 +7,7 @@ export function Badge({ label, color, small }) {
   );
 }
 
-export function Btn({ children, onClick, variant = "primary", small, style, disabled }) {
+export function Btn({ children, onClick, variant = "primary", small, style, disabled, type = "button" }) {
   const styles = {
     primary: { background: C.red, color: C.white, border: "none" },
     secondary: { background: C.white, color: C.navy, border: `1px solid ${C.mutedL}` },
@@ -21,7 +21,7 @@ export function Btn({ children, onClick, variant = "primary", small, style, disa
     teal: { background: C.tealL, color: C.teal, border: `1px solid ${C.teal}44` },
   };
   return (
-    <button onClick={onClick} disabled={disabled} style={{ ...styles[variant], borderRadius: 8, padding: small ? "5px 11px" : "9px 18px", fontSize: small ? 11 : 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: disabled ? 0.5 : 1, whiteSpace: "nowrap", flexShrink: 0, ...style }}
+    <button type={type} onClick={onClick} disabled={disabled} style={{ ...styles[variant], borderRadius: 8, padding: small ? "5px 11px" : "9px 18px", fontSize: small ? 11 : 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: disabled ? 0.5 : 1, whiteSpace: "nowrap", flexShrink: 0, ...style }}
       onMouseOver={e => !disabled && (e.currentTarget.style.opacity = "0.82")}
       onMouseOut={e => !disabled && (e.currentTarget.style.opacity = "1")}
     >{children}</button>

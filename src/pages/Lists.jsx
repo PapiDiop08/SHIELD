@@ -27,8 +27,11 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
   const [importType, setImportType] = useState("MSISDN");
   const [importReason, setImportReason] = useState("");
   const [toast, setToast] = useState(null);
+  const [groupView, setGroupView] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   function showToast(msg,color=C.success){ setToast({msg,color}); setTimeout(()=>setToast(null),3000); }
+  function toggleGroup(type){ setExpandedGroups(prev=>{ const s=new Set(prev); s.has(type)?s.delete(type):s.add(type); return s; }); }
 
   const current = useMemo(() => {
     let list = activeTab === "all" ? blacklist : blacklist.filter(e => e.list === activeTab);
@@ -128,7 +131,10 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
         <Select value={filterType} onChange={setFilterType} options={[{value:"all",label:"Tous types"},...BL_TYPES.map(t=>({value:t,label:t}))]} />
         <Select value={filterStatus} onChange={setFilterStatus} options={[{value:"all",label:"Statut"},{value:"active",label:"Actifs"},{value:"inactive",label:"Inactifs"}]} />
         <Select value={`${sortBy}-${sortDir}`} onChange={v=>{const[b,d]=v.split("-");setSortBy(b);setSortDir(d);}} options={[{value:"date-desc",label:"Date ↓"},{value:"date-asc",label:"Date ↑"},{value:"matches-desc",label:"Matches ↓"},{value:"value-asc",label:"Valeur A→Z"},{value:"type-asc",label:"Type A→Z"}]} />
-        {(search||filterType!=="all"||filterStatus!=="all")&&<button onClick={()=>{setSearch("");setFilterType("all");setFilterStatus("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>X</button>}
+        <button onClick={()=>setGroupView(g=>!g)} style={{ padding:"7px 12px", background: groupView ? C.navy : C.white, border:`1px solid ${groupView ? C.navy : C.mutedL}`, color: groupView ? C.white : C.textL, borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6 }}>
+          {groupView ? "☰ Plat" : "⊞ Par type"}
+        </button>
+        {(search||filterType!=="all"||filterStatus!=="all")&&<button onClick={()=>{setSearch("");setFilterType("all");setFilterStatus("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>✕</button>}
       </div>
 
       {/* Group actions */}
@@ -148,8 +154,75 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
 
       <div style={{ fontSize:12,color:C.textL,marginBottom:8 }}>{current.length} entrée{current.length>1?"s":""}</div>
 
-      {/* Scrollable table */}
-      <Card style={{ overflow:"hidden" }}>
+      {/* ── VUE GROUPÉE PAR TYPE ────────────────────────────────────── */}
+      {groupView && (() => {
+        // Regrouper par type
+        const groups = {};
+        current.forEach(e => { if(!groups[e.type]) groups[e.type]=[]; groups[e.type].push(e); });
+        const orderedTypes = BL_TYPES.filter(t => groups[t]);
+        const otherTypes   = Object.keys(groups).filter(t => !BL_TYPES.includes(t));
+        const allTypes = [...orderedTypes, ...otherTypes];
+        if (allTypes.length === 0) return <Card style={{ padding:"40px 24px", textAlign:"center", color:C.muted }}>Aucune entrée</Card>;
+        return (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {allTypes.map(type => {
+              const entries = groups[type];
+              const isOpen  = expandedGroups.has(type);
+              const tc      = TYPE_COLORS[type] || C.muted;
+              const matches = entries.reduce((s,e)=>s+(e.matches||0),0);
+              const active  = entries.filter(e=>e.active).length;
+              return (
+                <Card key={type} style={{ overflow:"hidden" }}>
+                  {/* Header du groupe */}
+                  <div onClick={()=>toggleGroup(type)}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 18px", cursor:"pointer", background: isOpen ? tc+"0A" : C.white, borderBottom: isOpen ? `1px solid ${tc}22` : "none" }}
+                    onMouseOver={e=>e.currentTarget.style.background=tc+"10"}
+                    onMouseOut={e=>e.currentTarget.style.background=isOpen?tc+"0A":C.white}>
+                    <div style={{ width:10, height:10, borderRadius:"50%", background:tc, flexShrink:0 }} />
+                    <div style={{ flex:1, display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:14, fontWeight:900, color:C.navy }}>{type}</span>
+                      <span style={{ background:tc+"18", color:tc, border:`1px solid ${tc}33`, borderRadius:12, padding:"1px 9px", fontSize:11, fontWeight:800 }}>{entries.length}</span>
+                      <span style={{ fontSize:11, color:C.muted }}>{active} actif{active>1?"s":""}</span>
+                      {matches > 0 && <span style={{ fontSize:11, color:C.warning, fontWeight:700 }}>⚡ {matches} matches</span>}
+                    </div>
+                    <span style={{ fontSize:18, color:tc, fontWeight:700, transform: isOpen?"rotate(90deg)":"rotate(0deg)", transition:"transform 0.2s", flexShrink:0 }}>›</span>
+                  </div>
+                  {/* Entrées du groupe */}
+                  {isOpen && (
+                    <div>
+                      {entries.map((e, i) => (
+                        <div key={e.id} onClick={()=>setDetailEntry(e)} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 18px",
+                          borderBottom: i < entries.length-1 ? `1px solid ${C.mutedL}` : "none",
+                          background: i%2===0?C.white:"#FAFBFE", cursor:"pointer",
+                          opacity: e.active ? 1 : 0.5 }}
+                          onMouseOver={ev=>ev.currentTarget.style.background=C.bg}
+                          onMouseOut={ev=>ev.currentTarget.style.background=i%2===0?C.white:"#FAFBFE"}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontFamily:"monospace", fontSize:13, fontWeight:700, color:C.navy }}>{e.value}</div>
+                            <div style={{ fontSize:11, color:C.textL, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.reason}</div>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+                            {e.matches>0 && <span style={{ fontSize:12, fontWeight:800, color:C.warning }}>⚡{e.matches}</span>}
+                            <span style={{ fontSize:10, color:C.muted }}>{e.date}</span>
+                            <span style={{ background:e.active?C.successL:C.mutedL, color:e.active?C.success:C.muted, border:`1px solid ${e.active?C.success:C.muted}44`, borderRadius:12, padding:"2px 8px", fontSize:10, fontWeight:700 }}>
+                              {e.active?"● Actif":"○ Inactif"}
+                            </span>
+                            {e.type==="MSISDN"&&<button onClick={ev=>{ev.stopPropagation();setSimProfile({msisdn:e.value,score:75,fraudType:e.reason});}} style={{ background:C.skyL, border:`1px solid ${C.sky}33`, color:C.sky, borderRadius:6, padding:"3px 8px", cursor:"pointer", fontSize:11, fontWeight:700 }}>SIM →</button>}
+                            <button onClick={ev=>{ev.stopPropagation();setConfirm({msg:`Supprimer ${e.value} ?`,action:"delete_one",id:e.id});}} style={{ background:C.dangerL, border:"none", color:C.danger, borderRadius:6, padding:"3px 7px", cursor:"pointer", fontSize:12 }}>✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* ── VUE PLATE (tableau) ─────────────────────────────────────── */}
+      {!groupView && <Card style={{ overflow:"hidden" }}>
         <div style={{ overflowX:"auto",WebkitOverflowScrolling:"touch" }}>
           <table style={{ width:"100%",borderCollapse:"collapse",minWidth:650 }}>
             <thead>
@@ -204,7 +277,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
             </tbody>
           </table>
         </div>
-      </Card>
+      </Card>}
 
       {/* Detail Modal */}
       {detailEntry&&(

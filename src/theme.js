@@ -13,7 +13,7 @@ export const C = {
   purple: "#5B43D6", purpleL: "#EEEBFD",
   teal: "#0E9E91", tealL: "#E4F6F5",
   pink: "#C94A86", pinkL: "#FBEAF3",
-  indigo: "#3A58D4", indigoL: "#EAEEFb",
+  indigo: "#3A58D4", indigoL: "#EAEEFB",
   lime: "#6A9E12", limeL: "#EFF6E0",
   magenta: "#9E1589", magentaL: "#F7E4F3",
   text: "#111827", textL: "#3D4A66",
