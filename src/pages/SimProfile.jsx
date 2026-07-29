@@ -318,11 +318,6 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                 <span style={{ fontSize:11,color:C.muted }}>{profile.distinct_cell_ids||cellMovements.length} antenne(s)</span>
               </div>
             </div>
-            {/* Score circle */}
-            <div style={{ textAlign:"center",flexShrink:0 }}>
-              <ScoreCircle value={globalRisk} color={riskColor} size={72} />
-              <div style={{ fontSize:9,color:riskColor,fontWeight:700,marginTop:2,letterSpacing:1 }}>{riskLabel}</div>
-            </div>
           </div>
         )}
 
