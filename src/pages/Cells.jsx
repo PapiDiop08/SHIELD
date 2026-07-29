@@ -1,5 +1,5 @@
 // ── SHIELD Cells Page — FULL LINK ────────────────────────────────────────────
-// Données depuis cell_anomalies + cdr_voice Supabase — plus de CELL_ANOMALIES mock
+// Données depuis cell_anomalies + cdr_voice AAR DB — plus de CELL_ANOMALIES mock
 
 import { useState, useEffect, useCallback } from "react";
 import { C, statusColor, statusLabel } from "../theme.js";
@@ -7,7 +7,7 @@ import { Card, Badge, Btn, SectionHeader } from "../components.jsx";
 import { useAuth } from "../AuthContext.jsx";
 import { supabase } from "../supabase.js";
 
-// ── Hook interne — anomalies depuis Supabase ──────────────────────────────
+// ── Hook interne — anomalies depuis AAR DB ──────────────────────────────
 function useCellAnomalies(operatorIdFilter) {
   const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +174,7 @@ function CellDetail({ cell, onBack, setBlacklist, setSimProfile, addLog }) {
         <Btn variant="ghost" onClick={() => { onBack(); setSelectedSIMs([]); setActionDone(null); }}>← Retour</Btn>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.navy }}>
-            📡 {cell.location || cell.cell_id}
+            ANT {cell.location || cell.cell_id}
           </h1>
           <p style={{ margin: "3px 0 0", color: C.textL, fontSize: 12 }}>
             {cell.cell_id} · Anomalie +{cell.traffic_pct}% · {cell.suspicious_sims} SIMs suspectes
@@ -189,7 +189,7 @@ function CellDetail({ cell, onBack, setBlacklist, setSimProfile, addLog }) {
 
       {actionDone && (
         <div style={{ background: C.successL, border: `1px solid ${C.success}44`, borderRadius: 10, padding: "12px 18px", marginBottom: 14, color: C.success, fontWeight: 700 }}>
-          ✅ Action effectuée avec succès
+          OK Action effectuée avec succès
         </div>
       )}
 
@@ -207,9 +207,9 @@ function CellDetail({ cell, onBack, setBlacklist, setSimProfile, addLog }) {
             Désélectionner
           </button>
           <div style={{ flex: 1 }} />
-          <Btn variant="warning" small onClick={() => groupAction("monitor")}>👁 Observer</Btn>
-          <Btn variant="purple" small onClick={() => groupAction("blacklist")}>📋 Blacklister</Btn>
-          <Btn variant="danger" small onClick={() => groupAction("block")}>🚫 Bloquer</Btn>
+          <Btn variant="warning" small onClick={() => groupAction("monitor")}>WATCH Observer</Btn>
+          <Btn variant="purple" small onClick={() => groupAction("blacklist")}>LOG Blacklister</Btn>
+          <Btn variant="danger" small onClick={() => groupAction("block")}>[X] Bloquer</Btn>
         </div>
       )}
 
@@ -239,12 +239,12 @@ function CellDetail({ cell, onBack, setBlacklist, setSimProfile, addLog }) {
       {/* Tableau SIMs */}
       {simsLoading ? (
         <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
-          <p style={{ margin: 0 }}>Chargement des SIMs depuis Supabase…</p>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>…</div>
+          <p style={{ margin: 0 }}>Chargement des SIMs chargement…</p>
         </Card>
       ) : sims.length === 0 ? (
         <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>📡</div>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>ANT</div>
           <p style={{ margin: 0 }}>Aucune SIM trouvée dans les CDR pour cette antenne</p>
         </Card>
       ) : (
@@ -338,25 +338,25 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
       <SectionHeader
         title="Anomalies antennes (Cell ID)"
         sub={loading
-          ? "Chargement depuis Supabase…"
-          : `${anomalies.length} anomalie${anomalies.length > 1 ? "s" : ""} détectée${anomalies.length > 1 ? "s" : ""} — Supabase`
+          ? "Chargement chargement…"
+          : `${anomalies.length} anomalie${anomalies.length > 1 ? "s" : ""} détectée${anomalies.length > 1 ? "s" : ""} `
         }
         action={
           <button onClick={refetch}
             style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
-            🔄 Actualiser
+            Sync Actualiser
           </button>
         }
       />
 
       {loading ? (
         <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>…</div>
           <p style={{ margin: 0 }}>Chargement des anomalies antennes…</p>
         </Card>
       ) : anomalies.length === 0 ? (
         <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>OK</div>
           <p style={{ margin: 0 }}>Aucune anomalie détectée sur les antennes</p>
         </Card>
       ) : (
@@ -376,7 +376,7 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
                     border: `2px solid ${severityColor}`,
                     borderRadius: 12, display: "flex", alignItems: "center",
                     justifyContent: "center", fontSize: 22, flexShrink: 0,
-                  }}>📡</div>
+                  }}>ANT</div>
 
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
@@ -394,7 +394,7 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
                       <strong style={{ color: C.danger }}>+{cell.traffic_pct}% au-dessus de la normale</strong>
                       {cell.lat && (
                         <span style={{ color: C.muted, marginLeft: 12, fontSize: 11 }}>
-                          📍 {cell.lat}, {cell.lng}
+                          GPS: {cell.lat}, {cell.lng}
                         </span>
                       )}
                     </div>
@@ -412,7 +412,7 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
 
                   <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
                     <Btn variant="warning" small onClick={() => setSelectedCell(cell)}>
-                      📋 Voir SIMs
+                      LOG Voir SIMs
                     </Btn>
                     <Btn variant="danger" small onClick={() => {
                       setBlacklist(p => [{
@@ -426,7 +426,7 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
                       addLog?.("BLACKLIST_CELL", "cell", cell.cell_id,
                         `Antenne ${cell.cell_id} blacklistée — Anomalie +${cell.traffic_pct}%`, "Antennes");
                     }}>
-                      🚫 Blacklister
+                      [X] Blacklister
                     </Btn>
                   </div>
                 </div>

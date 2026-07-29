@@ -129,7 +129,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
 
       {/* Tabs */}
       <div style={{display:"flex",gap:4,marginBottom:20,background:C.white,border:`1px solid ${C.mutedL}`,borderRadius:12,padding:5}}>
-        {[{k:"users",l:"👥 Utilisateurs"},{k:"permissions",l:"🛡 Permissions"}].map(t=>(
+        {[{k:"users",l:"Utilisateurs"},{k:"permissions",l:"Permissions"}].map(t=>(
           <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"9px 14px",background:tab===t.k?C.navy:"none",border:"none",borderRadius:8,cursor:"pointer",color:tab===t.k?C.white:C.textL,fontWeight:700,fontSize:13}}>
             {t.l}
           </button>
@@ -158,7 +158,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
           {/* Filters */}
           <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
             <div style={{position:"relative",flex:1,minWidth:160}}>
-              <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:C.muted}}>🔍</span>
+              
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom, email..."
                 style={{width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"8px 10px 8px 30px",fontSize:12,color:C.navy,outline:"none",boxSizing:"border-box",background:C.white}}/>
             </div>
@@ -169,7 +169,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
             {currentUser?.role==="superadmin"&&(
               <select value={filterOp} onChange={e=>setFilterOp(e.target.value)} style={{border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"8px 10px",fontSize:12,color:C.navy,background:C.white,outline:"none"}}>
                 <option value="all">Tous</option>
-                <option value="gfm">GFM interne</option>
+                <option value="aar">AAR (interne)</option>
                 {operators.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}
               </select>
             )}
@@ -211,7 +211,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
                             </select>
                           ):<Badge label={`${role?.icon} ${role?.label}`} color={role?.color||C.muted} small/>}
                         </td>
-                        <td style={{padding:"12px 14px",fontSize:12,color:C.textL}}>{u.operator||"GFM"}</td>
+                        <td style={{padding:"12px 14px",fontSize:12,color:C.textL}}>{u.operator||"AAR"}</td>
                         <td style={{padding:"12px 14px"}}>
                           <button onClick={()=>!isMe&&setConfirm({action:"toggle",u,msg:`${u.active?"Désactiver":"Activer"} ${u.name} ?`})}
                             disabled={isMe} style={{background:u.active?C.successL:C.mutedL,border:`1px solid ${u.active?C.success:C.muted}44`,color:u.active?C.success:C.muted,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:isMe?"not-allowed":"pointer"}}>
@@ -241,14 +241,14 @@ export default function Admin({ users, setUsers, operators, addLog }) {
             <p style={{margin:0,fontSize:12,color:C.textL}}>Définissez les permissions par rôle. Cliquez sur une case pour la modifier.</p>
             {currentUser?.role==="superadmin"&&(
               <Btn onClick={savePerms} style={{background:permsSaved?C.success:C.red}}>
-                {permsSaved?"✓ Sauvegardé":"💾 Sauvegarder les permissions"}
+                {permsSaved?"v Sauvegardé":"Sauvegarder les permissions"}
               </Btn>
             )}
           </div>
 
           {currentUser?.role!=="superadmin"&&(
             <div style={{background:C.warningL,border:`1px solid ${C.warning}44`,borderRadius:10,padding:"10px 16px",marginBottom:16,fontSize:12,color:C.warning,fontWeight:600}}>
-              ⚠ Seul le Super Admin peut modifier les permissions
+              ! Seul le Super Admin peut modifier les permissions
             </div>
           )}
 
@@ -297,7 +297,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
                             color:hasPerm?(isLocked?C.muted:ROLES[rk].color):C.mutedL,
                             transition:"all 0.15s",
                           }}>
-                          {hasPerm?"✓":"—"}
+                          {hasPerm?"v":"—"}
                         </button>
                         {isLocked&&<div style={{fontSize:8,color:C.muted,marginTop:2}}>verrouillé</div>}
                       </div>
@@ -311,7 +311,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
           {currentUser?.role==="superadmin"&&(
             <div style={{textAlign:"right",marginTop:16}}>
               <Btn onClick={savePerms} style={{background:permsSaved?C.success:C.red,fontSize:15,padding:"12px 28px"}}>
-                {permsSaved?"✓ Permissions sauvegardées":"💾 Sauvegarder les permissions"}
+                {permsSaved?"v Permissions sauvegardées":"Sauvegarder les permissions"}
               </Btn>
             </div>
           )}
@@ -346,16 +346,16 @@ export default function Admin({ users, setUsers, operators, addLog }) {
               <label style={{display:"block",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:6}}>Opérateur</label>
               <select value={newUser.operator} onChange={e=>setNewUser(f=>({...f,operator:e.target.value}))}
                 style={{width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,background:C.white,outline:"none"}}>
-                <option value="">GFM (interne)</option>
+                <option value="">AAR (interne)</option>
                 {operators.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}
               </select>
             </div>
             <div style={{background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:8,padding:"10px 14px",marginBottom:18,fontSize:12,color:C.textL}}>
-              📧 Un email d'invitation sera envoyé à <strong>{newUser.email||"l'utilisateur"}</strong> pour créer son mot de passe.
+              Email Un email d'invitation sera envoyé à <strong>{newUser.email||"l'utilisateur"}</strong> pour créer son mot de passe.
             </div>
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" onClick={()=>setShowCreate(false)} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>
-              <Btn onClick={createUser} disabled={!newUser.name||!newUser.email} style={{flex:2,justifyContent:"center"}}>👤 Créer et inviter</Btn>
+              <Btn onClick={createUser} disabled={!newUser.name||!newUser.email} style={{flex:2,justifyContent:"center"}}>USR Créer et inviter</Btn>
             </div>
           </div>
         </Modal>
@@ -372,7 +372,7 @@ export default function Admin({ users, setUsers, operators, addLog }) {
             <p style={{margin:"0 0 18px",fontSize:13,color:C.textL,lineHeight:1.6}}>Un email avec un lien valable 24h sera envoyé à <strong>{resetUser.email}</strong>.</p>
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" onClick={()=>setResetUser(null)} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>
-              <Btn variant="warning" onClick={()=>sendReset(resetUser)} style={{flex:2,justifyContent:"center"}}>📧 Envoyer le reset</Btn>
+              <Btn variant="warning" onClick={()=>sendReset(resetUser)} style={{flex:2,justifyContent:"center"}}>Email Envoyer le reset</Btn>
             </div>
           </div>
         </Modal>

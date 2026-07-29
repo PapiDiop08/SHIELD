@@ -15,15 +15,15 @@ export const C = {
 
 export const FRAUD_CATEGORIES = {
   "Télécom": {
-    color: C.red, icon: "📞",
+    color: C.red, icon: "TEL",
     types: ["SIM Box","IRSF","Wangiri","Bypass GSM","SIM Swap","Spoofing CLI","Roaming Fraud","Flash Calls","PBX Hacking","Subscription Fraud","Dealer Fraud","Grey Routes","Bypass Fees"]
   },
   "Mobile Money": {
-    color: C.teal, icon: "💸",
+    color: C.teal, icon: "MM",
     types: ["ATO","Velocity Fraud","Comptes Mules","Fraude Agents","Merchant Fraud","Refund Abuse","OTP Interception","Bonus Abuse","Dépassement comportemental","Money Muling","Social Engineering MM","Fake KYC"]
   },
   "Arnaques": {
-    color: C.purple, icon: "🎭",
+    color: C.purple, icon: "SCAM",
     types: ["Arnaque Marabout","Police fictive","Gain fictif","Phishing opérateur","Escroquerie âgés","Usurpation identité","Investment Scam"]
   },
 };
@@ -40,7 +40,7 @@ export const fraudCatIcon = (type) => {
   for (const cat of Object.values(FRAUD_CATEGORIES)) {
     if (cat.types.includes(type)) return cat.icon;
   }
-  return "⚠";
+  return "!";
 };
 export const fraudCatName = (type) => {
   for (const [name, cat] of Object.entries(FRAUD_CATEGORIES)) {
@@ -55,11 +55,11 @@ export const statusColor = s => ({ blocked: C.danger, alert: C.warning, monitor:
 export const statusLabel = s => ({ blocked: "BLOQUÉ", alert: "ALERTE", monitor: "SURVEILLANCE", cleared: "RÉSOLU", investigating: "EN COURS", escalated: "ESCALADÉ", false_positive: "FAUX POSITIF", closed: "CLÔTURÉ" }[s] || s);
 
 export const ROLES = {
-  superadmin: { label: "Super Admin", color: C.red, icon: "👑", org: "GFM" },
-  gfm_analyst: { label: "GFM Analyste", color: C.purple, icon: "🔬", org: "GFM" },
-  admin: { label: "Admin Opérateur", color: C.sky, icon: "🛡", org: "operator" },
-  analyst: { label: "Fraud Analyst", color: C.teal, icon: "🔍", org: "operator" },
-  supervisor: { label: "Superviseur", color: C.warning, icon: "👁", org: "operator" },
+  superadmin: { label: "Super Admin", color: C.red, icon: "", org: "AAR" },
+  gfm_analyst: { label: "AAR Analyste", color: C.purple, icon: "", org: "AAR" },
+  admin: { label: "Admin Opérateur", color: C.sky, icon: "", org: "operator" },
+  analyst: { label: "Fraud Analyst", color: C.teal, icon: "", org: "operator" },
+  supervisor: { label: "Superviseur", color: C.warning, icon: "", org: "operator" },
 };
 
 export const GFM_ROLES = ["superadmin", "gfm_analyst"];
@@ -115,7 +115,7 @@ export const ROLE_PERMISSIONS = {
 
 export const ACTIONS = ["block","alert","monitor","block_mm_tx","require_otp","limit_amount"];
 export const ACTION_LABELS = {
-  block: "🚫 Bloquer", alert: "🔔 Alerter", monitor: "👁 Surveiller",
-  block_mm_tx: "🚫 Bloquer transaction MM", require_otp: "🔐 Exiger OTP", limit_amount: "💰 Limiter montant",
+  block: "Bloquer", alert: "Alerter", monitor: "Surveiller",
+  block_mm_tx: "Bloquer transaction MM", require_otp: "Exiger OTP", limit_amount: "Limiter montant",
 };
 export const COMPARATORS = [">","<",">=","<=","=","!=","contient","commence par","finit par","est dans la liste"];

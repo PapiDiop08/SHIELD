@@ -108,10 +108,10 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: C.navy }}>
-            Bonjour, {currentUser?.name?.split(" ")[0]} 👋
+            Bonjour, {currentUser?.name?.split(" ")[0]} 
           </h1>
           <p style={{ margin: "4px 0 0", color: C.textL, fontSize: 12 }}>
-            Aujourd'hui · <span style={{ color: C.success }}>● Données Supabase chargées</span>
+            Aujourd'hui · <span style={{ color: C.success }}>● Données chargées</span>
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -136,13 +136,13 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
             </div>
             <span style={{ fontSize: 12, fontWeight: 700,
               color: simActive ? C.success : C.muted, whiteSpace: "nowrap" }}>
-              {simActive ? "🔴 Simulation ON" : "Simulation OFF"}
+              {simActive ? "R Simulation ON" : "Simulation OFF"}
             </span>
           </div>
           <button onClick={() => window.location.reload()} style={{
             background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8,
             padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12,
-          }}>🔄 Actualiser</button>
+          }}>Sync Actualiser</button>
         </div>
       </div>
 
@@ -153,7 +153,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
           borderRadius: 10, padding: "12px 18px", marginBottom: 20,
           cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
         }}>
-          <span style={{ fontSize: 18 }}>🔔</span>
+          <span style={{ fontSize: 18 }}>[!]</span>
           <span style={{ fontWeight: 700, color: C.warning, fontSize: 14 }}>
             {myAlerts.length} détection{myAlerts.length > 1 ? "s" : ""} assignée{myAlerts.length > 1 ? "s" : ""} à vous
           </span>
@@ -163,12 +163,12 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 14, marginBottom: 20 }}>
-        <Stat value={detectionsToday} label="Détections aujourd'hui" color={C.sky} icon="🎯" sub="Depuis minuit" />
-        <Stat value={fraudsBlocked} label="Fraudes bloquées" color={C.danger} icon="🚫"
+        <Stat value={detectionsToday} label="Détections aujourd'hui" color={C.sky} icon="alerts" sub="Depuis minuit" />
+        <Stat value={fraudsBlocked} label="Fraudes bloquées" color={C.danger} icon="blockings"
           sub={safeAlerts.length ? `${Math.round(fraudsBlocked/safeAlerts.length*100)}% taux` : "—"} />
-        <Stat value={activeRules} label="Règles actives" color={C.warning} icon="⚙" />
-        <Stat value={openCases} label="Cases ouverts" color={C.purple} icon="📁" />
-        <Stat value={`${(fraudsBlocked * 4200 / 1000000).toFixed(1)}M XOF`} label="Économies est." color={C.success} icon="💰" />
+        <Stat value={activeRules} label="Règles actives" color={C.warning} icon="rules" />
+        <Stat value={openCases} label="Cases ouverts" color={C.purple} icon="cases" />
+        <Stat value={`${(fraudsBlocked * 4200 / 1000000).toFixed(1)}M XOF`} label="Économies est." color={C.success} icon="billing" />
       </div>
 
       {/* Tendance + Pie */}
@@ -247,7 +247,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
       {/* Anomalies antennes */}
       <Card style={{ padding: "16px 20px", marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>📡 Anomalies antennes</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>ANT Anomalies antennes</div>
           <button onClick={() => navigate("cells")} style={{ background: "none", border: "none", color: C.sky, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
             Voir toutes →
           </button>

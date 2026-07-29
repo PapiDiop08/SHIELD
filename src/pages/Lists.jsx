@@ -5,12 +5,12 @@ import { useAuth } from "../AuthContext.jsx";
 
 const TYPE_COLORS = { "MSISDN":C.navy,"IMSI":C.sky,"IMEI":C.purple,"IMEI Préfixe":C.warning,"Préfixe numéro":C.danger,"Cell ID / BTS":C.success,"Pays":C.textL,"Champ CDR":C.muted };
 const BL_TYPES = ["MSISDN","IMSI","IMEI","IMEI Préfixe","Préfixe numéro","Cell ID / BTS","Pays","Champ CDR"];
-const TAB_COLOR = { blacklist:C.danger,whitelist:C.success,watchlist:C.warning };
-const TAB_LABEL = { blacklist:"Blacklist",whitelist:"Whitelist",watchlist:"Watchlist" };
+const TAB_COLOR = { blacklist:C.danger,whitelist:C.success,watchlist:C.warning,greylist:C.muted };
+const TAB_LABEL = { blacklist:"Blacklist",whitelist:"Whitelist",watchlist:"Watchlist",greylist:"Greylist" };
 
 export default function Lists({ blacklist, setBlacklist, setSimProfile, users, addLog }) {
   const { currentUser, can } = useAuth();
-  const [activeTab, setActiveTab] = useState("blacklist");
+  const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState([]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -31,7 +31,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
   function showToast(msg,color=C.success){ setToast({msg,color}); setTimeout(()=>setToast(null),3000); }
 
   const current = useMemo(() => {
-    let list = blacklist.filter(e => e.list === activeTab);
+    let list = activeTab === "all" ? blacklist : blacklist.filter(e => e.list === activeTab);
     if (search) list = list.filter(e => e.value.toLowerCase().includes(search.toLowerCase()) || e.reason.toLowerCase().includes(search.toLowerCase()));
     if (filterType !== "all") list = list.filter(e => e.type === filterType);
     if (filterStatus === "active") list = list.filter(e => e.active);
@@ -49,6 +49,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
   const bl = blacklist.filter(e=>e.list==="blacklist");
   const wl = blacklist.filter(e=>e.list==="whitelist");
   const wa = blacklist.filter(e=>e.list==="watchlist");
+  const gl = blacklist.filter(e=>e.list==="greylist");
 
   function toggleEntry(id){ setBlacklist(p=>p.map(e=>e.id===id?{...e,active:!e.active}:e)); }
   function deleteEntry(id){ setBlacklist(p=>p.filter(e=>e.id!==id)); showToast("Supprimé"); }
@@ -64,20 +65,22 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
   }
 
   function addEntry(){
-    const entry={ id:Date.now(),list:activeTab,type:addForm.type,value:addForm.value,reason:addForm.reason,addedBy:currentUser?.id,date:new Date().toISOString().slice(0,10),active:true,matches:0,lastMatch:null,...(activeTab==="watchlist"?{daysLeft:addForm.daysWatch}:{}) };
+    const targetList = activeTab === "all" ? "blacklist" : activeTab;
+    const entry={ id:Date.now(),list:targetList,type:addForm.type,value:addForm.value,reason:addForm.reason,addedBy:currentUser?.id,date:new Date().toISOString().slice(0,10),active:true,matches:0,lastMatch:null,...(targetList==="watchlist"?{daysLeft:addForm.daysWatch}:{}) };
     setBlacklist(p=>[entry,...p]);
-    addLog?.("ADD_"+activeTab.toUpperCase(),activeTab,entry.id,`Ajout ${addForm.type} ${addForm.value} — ${addForm.reason}`,"Listes");
+    addLog?.("ADD_"+targetList.toUpperCase(),targetList,entry.id,`Ajout ${addForm.type} ${addForm.value} — ${addForm.reason}`,"Listes");
     setShowAdd(false); setAddForm({type:"MSISDN",value:"",reason:"",daysWatch:7});
-    showToast(`Ajouté`,TAB_COLOR[activeTab]);
+    showToast(`Ajouté`,TAB_COLOR[targetList]||C.navy);
   }
 
   function importEntries(){
+    const targetList = activeTab === "all" ? "blacklist" : activeTab;
     const lines = importRaw.split("\n").map(l=>l.trim()).filter(Boolean);
-    const entries = lines.map((v,i)=>({ id:Date.now()+i,list:activeTab,type:importType,value:v,reason:importReason||"Import batch",addedBy:currentUser?.id,date:new Date().toISOString().slice(0,10),active:true,matches:0,lastMatch:null }));
+    const entries = lines.map((v,i)=>({ id:Date.now()+i,list:targetList,type:importType,value:v,reason:importReason||"Import batch",addedBy:currentUser?.id,date:new Date().toISOString().slice(0,10),active:true,matches:0,lastMatch:null }));
     setBlacklist(p=>[...entries,...p]);
-    addLog?.("IMPORT_BATCH",activeTab,null,`Import ${lines.length} entrées — ${activeTab}`,"Listes");
+    addLog?.("IMPORT_BATCH",targetList,null,`Import ${lines.length} entrées — ${targetList}`,"Listes");
     setShowImport(false); setImportRaw(""); setImportStep(1);
-    showToast(`${lines.length} entrées importées`,TAB_COLOR[activeTab]);
+    showToast(`${lines.length} entrées importées`,TAB_COLOR[targetList]||C.navy);
   }
 
   const allSel = current.length>0&&current.every(e=>selected.includes(e.id));
@@ -89,13 +92,13 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
 
       <SectionHeader title="Listes de contrôle" sub={`${bl.filter(e=>e.active).length} BL · ${wl.filter(e=>e.active).length} WL · ${wa.filter(e=>e.active).length} WA`}
         action={<>
-          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>📤 Import</Btn>
+          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>Export Import</Btn>
           <Btn small onClick={()=>setShowAdd(true)}>+ Ajouter</Btn>
         </>} />
 
       {/* Stats */}
       <div style={{ display:"flex",gap:10,marginBottom:16,flexWrap:"wrap" }}>
-        {[{l:"Blacklist",n:bl.length,a:bl.filter(e=>e.active).length,c:C.danger,t:"blacklist"},{l:"Whitelist",n:wl.length,a:wl.filter(e=>e.active).length,c:C.success,t:"whitelist"},{l:"Watchlist",n:wa.length,a:wa.filter(e=>e.active).length,c:C.warning,t:"watchlist"},{l:"Matches",n:blacklist.reduce((a,e)=>a+(e.matches||0),0),c:C.sky}].map(s=>(
+        {[{l:"Blacklist",n:bl.length,a:bl.filter(e=>e.active).length,c:C.danger,t:"blacklist"},{l:"Whitelist",n:wl.length,a:wl.filter(e=>e.active).length,c:C.success,t:"whitelist"},{l:"Watchlist",n:wa.length,a:wa.filter(e=>e.active).length,c:C.warning,t:"watchlist"},{l:"Greylist",n:gl.length,a:gl.filter(e=>e.active).length,c:C.muted,t:"greylist"},{l:"Correspondances",n:blacklist.reduce((a,e)=>a+(e.matches||0),0),c:C.sky}].map(s=>(
           <div key={s.l} onClick={()=>s.t&&setActiveTab(s.t)} style={{ flex:1,minWidth:100,background:C.white,border:`1px solid ${s.t===activeTab?s.c:C.mutedL}`,borderTop:`3px solid ${s.c}`,borderRadius:12,padding:"12px 16px",cursor:s.t?"pointer":"default" }}>
             <div style={{ fontSize:22,fontWeight:900,color:s.c }}>{s.n}</div>
             {s.a!==undefined&&<div style={{ fontSize:10,color:C.success,fontWeight:600 }}>{s.a} actives</div>}
@@ -104,13 +107,16 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display:"flex",gap:4,marginBottom:14,background:C.white,border:`1px solid ${C.mutedL}`,borderRadius:12,padding:5 }}>
-        {["blacklist","whitelist","watchlist"].map(tab=>(
-          <button key={tab} onClick={()=>{setActiveTab(tab);setSelected([]);}} style={{ flex:1,padding:"9px 12px",background:activeTab===tab?TAB_COLOR[tab]:"none",border:"none",borderRadius:8,cursor:"pointer",color:activeTab===tab?C.white:C.textL,fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6 }}>
-            {tab==="blacklist"?"🚫":tab==="whitelist"?"✅":"👁"} {TAB_LABEL[tab]}
+      {/* Tabs — Toutes | Blacklist | Whitelist | Watchlist | Greylist */}
+      <div style={{ display:"flex",gap:4,marginBottom:14,background:C.white,border:`1px solid ${C.mutedL}`,borderRadius:12,padding:5,flexWrap:"wrap" }}>
+        <button onClick={()=>{setActiveTab("all");setSelected([]);}} style={{ flex:1,minWidth:70,padding:"9px 10px",background:activeTab==="all"?C.navy:"none",border:"none",borderRadius:8,cursor:"pointer",color:activeTab==="all"?C.white:C.textL,fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6 }}>
+          Toutes <span style={{ background:activeTab==="all"?"rgba(255,255,255,0.25)":C.mutedL,color:activeTab==="all"?C.white:C.textL,borderRadius:12,padding:"1px 7px",fontSize:10,fontWeight:800 }}>{blacklist.length}</span>
+        </button>
+        {["blacklist","whitelist","watchlist","greylist"].map(tab=>(
+          <button key={tab} onClick={()=>{setActiveTab(tab);setSelected([]);}} style={{ flex:1,minWidth:70,padding:"9px 10px",background:activeTab===tab?TAB_COLOR[tab]:"none",border:"none",borderRadius:8,cursor:"pointer",color:activeTab===tab?C.white:C.textL,fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6 }}>
+            {TAB_LABEL[tab]}
             <span style={{ background:activeTab===tab?"rgba(255,255,255,0.25)":C.mutedL,color:activeTab===tab?C.white:C.textL,borderRadius:12,padding:"1px 7px",fontSize:10,fontWeight:800 }}>
-              {tab==="blacklist"?bl.length:tab==="whitelist"?wl.length:wa.length}
+              {tab==="blacklist"?bl.length:tab==="whitelist"?wl.length:tab==="watchlist"?wa.length:gl.length}
             </span>
           </button>
         ))}
@@ -122,7 +128,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
         <Select value={filterType} onChange={setFilterType} options={[{value:"all",label:"Tous types"},...BL_TYPES.map(t=>({value:t,label:t}))]} />
         <Select value={filterStatus} onChange={setFilterStatus} options={[{value:"all",label:"Statut"},{value:"active",label:"Actifs"},{value:"inactive",label:"Inactifs"}]} />
         <Select value={`${sortBy}-${sortDir}`} onChange={v=>{const[b,d]=v.split("-");setSortBy(b);setSortDir(d);}} options={[{value:"date-desc",label:"Date ↓"},{value:"date-asc",label:"Date ↑"},{value:"matches-desc",label:"Matches ↓"},{value:"value-asc",label:"Valeur A→Z"},{value:"type-asc",label:"Type A→Z"}]} />
-        {(search||filterType!=="all"||filterStatus!=="all")&&<button onClick={()=>{setSearch("");setFilterType("all");setFilterStatus("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>✕</button>}
+        {(search||filterType!=="all"||filterStatus!=="all")&&<button onClick={()=>{setSearch("");setFilterType("all");setFilterStatus("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>X</button>}
       </div>
 
       {/* Group actions */}
@@ -134,9 +140,9 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
           <div style={{ flex:1 }} />
           <Btn variant="success" small onClick={()=>doGroupAction("enable")}>▶ Activer</Btn>
           <Btn variant="warning" small onClick={()=>doGroupAction("disable")}>⏸ Désactiver</Btn>
-          {activeTab==="blacklist"&&<Btn variant="sky" small onClick={()=>doGroupAction("whitelist")}>✅ → WL</Btn>}
-          {activeTab!=="blacklist"&&<Btn variant="danger" small onClick={()=>doGroupAction("blacklist")}>🚫 → BL</Btn>}
-          <Btn variant="danger" small onClick={()=>setConfirm({msg:`Supprimer ${selected.length} entrée(s) ?`,action:"delete"})}>🗑</Btn>
+          {activeTab==="blacklist"&&<Btn variant="sky" small onClick={()=>doGroupAction("whitelist")}>OK → WL</Btn>}
+          {activeTab!=="blacklist"&&<Btn variant="danger" small onClick={()=>doGroupAction("blacklist")}>→ BL</Btn>}
+          <Btn variant="danger" small onClick={()=>setConfirm({msg:`Supprimer ${selected.length} entrée(s) ?`,action:"delete"})}>Del</Btn>
         </div>
       )}
 
@@ -159,7 +165,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
               </tr>
             </thead>
             <tbody>
-              {current.length===0&&<tr><td colSpan={9} style={{ padding:"40px",textAlign:"center",color:C.muted }}><div style={{ fontSize:28,marginBottom:8 }}>📋</div>Aucune entrée</td></tr>}
+              {current.length===0&&<tr><td colSpan={9} style={{ padding:"40px",textAlign:"center",color:C.muted }}>Aucune entrée</td></tr>}
               {current.map((e,idx)=>{
                 const tc=TYPE_COLORS[e.type]||C.muted;
                 const isSel=selected.includes(e.id);
@@ -189,7 +195,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
                       <div style={{ display:"flex",gap:4 }}>
                         <button onClick={()=>setDetailEntry(e)} style={{ background:C.navyL,border:"none",color:C.white,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11,fontWeight:700 }}>Détails</button>
                         {e.type==="MSISDN"&&<button onClick={()=>setSimProfile({msisdn:e.value,score:75,fraudType:e.reason})} style={{ background:C.skyL,border:`1px solid ${C.sky}33`,color:C.sky,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11,fontWeight:700 }}>SIM</button>}
-                        <button onClick={()=>setConfirm({msg:`Supprimer ${e.value} ?`,action:"delete_one",id:e.id})} style={{ background:C.dangerL,border:"none",color:C.danger,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:13 }}>🗑</button>
+                        <button onClick={()=>setConfirm({msg:`Supprimer ${e.value} ?`,action:"delete_one",id:e.id})} style={{ background:C.dangerL,border:"none",color:C.danger,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:13 }}>Del</button>
                       </div>
                     </td>
                   </tr>
@@ -218,7 +224,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
             </div>
             {detailEntry.type==="MSISDN"&&(
               <div style={{ background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                <span style={{ fontSize:13,color:C.navy,fontWeight:600 }}>📱 Profil SIM disponible</span>
+                <span style={{ fontSize:13,color:C.navy,fontWeight:600 }}>MOB Profil SIM disponible</span>
                 <Btn variant="sky" small onClick={()=>{setSimProfile({msisdn:detailEntry.value,score:75,fraudType:detailEntry.reason});setDetailEntry(null);}}>Voir →</Btn>
               </div>
             )}
@@ -226,10 +232,10 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
               <div style={{ fontSize:11,fontWeight:700,color:C.muted,marginBottom:8,textTransform:"uppercase" }}>Actions</div>
               <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
                 <Btn variant={detailEntry.active?"warning":"success"} small onClick={()=>{toggleEntry(detailEntry.id);setDetailEntry(null);}}>{detailEntry.active?"⏸ Désactiver":"▶ Activer"}</Btn>
-                {activeTab==="blacklist"&&<Btn variant="success" small onClick={()=>{moveEntry(detailEntry.id,"whitelist");setDetailEntry(null);}}>✅ → WL</Btn>}
-                {activeTab==="blacklist"&&<Btn variant="purple" small onClick={()=>{moveEntry(detailEntry.id,"watchlist");setDetailEntry(null);}}>👁 → WA</Btn>}
-                {activeTab!=="blacklist"&&<Btn variant="danger" small onClick={()=>{moveEntry(detailEntry.id,"blacklist");setDetailEntry(null);}}>🚫 → BL</Btn>}
-                <Btn variant="ghost" small onClick={()=>{deleteEntry(detailEntry.id);setDetailEntry(null);}}>🗑 Supprimer</Btn>
+                {activeTab==="blacklist"&&<Btn variant="success" small onClick={()=>{moveEntry(detailEntry.id,"whitelist");setDetailEntry(null);}}>OK → WL</Btn>}
+                {activeTab==="blacklist"&&<Btn variant="purple" small onClick={()=>{moveEntry(detailEntry.id,"watchlist");setDetailEntry(null);}}>→ WA</Btn>}
+                {activeTab!=="blacklist"&&<Btn variant="danger" small onClick={()=>{moveEntry(detailEntry.id,"blacklist");setDetailEntry(null);}}>→ BL</Btn>}
+                <Btn variant="ghost" small onClick={()=>{deleteEntry(detailEntry.id);setDetailEntry(null);}}>Del Supprimer</Btn>
               </div>
             </div>
           </div>
@@ -238,7 +244,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
 
       {/* Add Modal */}
       {showAdd&&(
-        <Modal title={`Ajouter → ${TAB_LABEL[activeTab]}`} onClose={()=>setShowAdd(false)} width={460}>
+        <Modal title={`Ajouter → ${TAB_LABEL[activeTab]||"Blacklist"}`} onClose={()=>setShowAdd(false)} width={460}>
           <div style={{ padding:"18px 20px" }}>
             <p style={{ margin:"0 0 8px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Type</p>
             <div style={{ display:"flex",flexWrap:"wrap",gap:5,marginBottom:12 }}>
@@ -247,7 +253,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
             <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Valeur</p>
             <input value={addForm.value} onChange={e=>setAddForm(f=>({...f,value:e.target.value}))} placeholder="Ex: 77654XXXXX" style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",fontFamily:"monospace",marginBottom:12 }} />
             <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Raison</p>
-            <input value={addForm.reason} onChange={e=>setAddForm(f=>({...f,reason:e.target.value}))} placeholder="Ex: SIM Box confirmée..." style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",marginBottom:activeTab==="watchlist"?12:18 }} />
+            <input value={addForm.reason} onChange={e=>setAddForm(f=>({...f,reason:e.target.value}))} placeholder="Ex: SIM Box confirmée..." style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",marginBottom:(activeTab==="watchlist")?(12):18 }} />
             {activeTab==="watchlist"&&(
               <div style={{ marginBottom:18 }}>
                 <p style={{ margin:"0 0 8px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Durée d'observation</p>
@@ -264,25 +270,58 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
 
       {/* Import Modal */}
       {showImport&&(
-        <Modal title={`Import batch → ${TAB_LABEL[activeTab]}`} onClose={()=>setShowImport(false)} width={500}>
-          <div style={{ height:3,background:C.mutedL }}><div style={{ height:"100%",width:`${importStep/2*100}%`,background:TAB_COLOR[activeTab],transition:"width 0.3s" }} /></div>
+        <Modal title="Importer une liste CSV" onClose={()=>setShowImport(false)} width={520}>
+          <div style={{ height:3,background:C.mutedL }}><div style={{ height:"100%",width:`${importStep/2*100}%`,background:activeTab!=="all"?TAB_COLOR[activeTab]:C.navy,transition:"width 0.3s" }} /></div>
           <div style={{ padding:"18px 20px" }}>
             {importStep===1?(
               <div>
+                {/* Liste cible */}
+                <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Liste cible</p>
+                <div style={{ display:"flex",gap:6,marginBottom:14,flexWrap:"wrap" }}>
+                  {["blacklist","whitelist","watchlist","greylist"].map(tab=>(
+                    <button key={tab} onClick={()=>setImportType(prev=>{ setActiveTab(tab); return prev; })} style={{ padding:"5px 10px",background:activeTab===tab?(TAB_COLOR[tab]+"18"):C.bg,border:`1px solid ${activeTab===tab?TAB_COLOR[tab]:C.mutedL}`,borderRadius:8,color:activeTab===tab?TAB_COLOR[tab]:C.textL,cursor:"pointer",fontSize:11,fontWeight:activeTab===tab?700:400 }} onClick={()=>setActiveTab(tab)}>{TAB_LABEL[tab]}</button>
+                  ))}
+                </div>
+                {/* Type */}
+                <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Type par défaut</p>
                 <div style={{ display:"flex",flexWrap:"wrap",gap:5,marginBottom:12 }}>{BL_TYPES.map(t=><button key={t} onClick={()=>setImportType(t)} style={{ padding:"4px 9px",background:importType===t?(TYPE_COLORS[t]+"18"):C.bg,border:`1px solid ${importType===t?TYPE_COLORS[t]:C.mutedL}`,borderRadius:8,color:importType===t?TYPE_COLORS[t]:C.textL,cursor:"pointer",fontSize:11,fontWeight:importType===t?700:400 }}>{t}</button>)}</div>
-                <input value={importReason} onChange={e=>setImportReason(e.target.value)} placeholder="Raison..." style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",marginBottom:12 }} />
-                <textarea value={importRaw} onChange={e=>setImportRaw(e.target.value)} placeholder={"77654XXXXX\n78901XXXXX..."} rows={6} style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.navy,outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"monospace" }} />
-                <p style={{ margin:"4px 0 14px",fontSize:11,color:C.muted }}>{importRaw.split("\n").filter(Boolean).length} entrées</p>
+                <input value={importReason} onChange={e=>setImportReason(e.target.value)} placeholder="Raison (défaut)..." style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",marginBottom:12 }} />
+                {/* File input CSV */}
+                <div style={{ border:`2px dashed ${C.mutedL}`,borderRadius:10,padding:"14px 16px",marginBottom:12,textAlign:"center",background:C.bg }}>
+                  <p style={{ margin:"0 0 8px",fontSize:12,color:C.textL }}>Format CSV : <code style={{ fontFamily:"monospace",background:C.mutedL,padding:"1px 5px",borderRadius:4 }}>valeur,type,raison</code> ou une valeur par ligne</p>
+                  <input type="file" accept=".csv,.txt" onChange={e=>{
+                    const file=e.target.files[0]; if(!file)return;
+                    const reader=new FileReader();
+                    reader.onload=ev=>{
+                      const text=ev.target.result;
+                      const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+                      // Detect CSV (has commas) vs plain list
+                      const isCSV=lines.some(l=>l.includes(","));
+                      if(isCSV){
+                        setImportRaw(lines.map(l=>{const p=l.split(",");return p[0].trim();}).join("\n"));
+                        const firstType=lines[0]?.split(",")[1]?.trim();
+                        if(firstType&&BL_TYPES.includes(firstType))setImportType(firstType);
+                        const firstReason=lines[0]?.split(",")[2]?.trim();
+                        if(firstReason)setImportReason(firstReason);
+                      } else {
+                        setImportRaw(lines.join("\n"));
+                      }
+                    };
+                    reader.readAsText(file);
+                  }} style={{ cursor:"pointer",fontSize:12,color:C.navy }} />
+                </div>
+                <textarea value={importRaw} onChange={e=>setImportRaw(e.target.value)} placeholder={"77654XXXXX\n78901XXXXX\n..."} rows={5} style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.navy,outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"monospace" }} />
+                <p style={{ margin:"4px 0 14px",fontSize:11,color:C.muted }}>{importRaw.split("\n").filter(Boolean).length} entrées détectées</p>
                 <div style={{ display:"flex",gap:8 }}><Btn variant="ghost" onClick={()=>setShowImport(false)} style={{ flex:1,justifyContent:"center" }}>Annuler</Btn><Btn onClick={()=>setImportStep(2)} disabled={!importRaw.trim()} style={{ flex:2,justifyContent:"center" }}>Prévisualiser →</Btn></div>
               </div>
             ):(
               <div>
                 <div style={{ background:C.bg,borderRadius:10,padding:"12px 14px",marginBottom:14 }}>
-                  <div style={{ fontSize:13,fontWeight:700,color:C.navy,marginBottom:8 }}>{importRaw.split("\n").filter(Boolean).length} entrées · {importType}</div>
-                  {importRaw.split("\n").filter(Boolean).slice(0,6).map((v,i)=><div key={i} style={{ fontFamily:"monospace",fontSize:12,color:C.navy,padding:"3px 0",borderBottom:`1px solid ${C.mutedL}` }}>{v}</div>)}
-                  {importRaw.split("\n").filter(Boolean).length>6&&<p style={{ margin:"6px 0 0",fontSize:11,color:C.muted }}>+ {importRaw.split("\n").filter(Boolean).length-6} autres...</p>}
+                  <div style={{ fontSize:13,fontWeight:700,color:C.navy,marginBottom:8 }}>{importRaw.split("\n").filter(Boolean).length} entrées · {importType} → {TAB_LABEL[activeTab]||activeTab}</div>
+                  {importRaw.split("\n").filter(Boolean).slice(0,5).map((v,i)=><div key={i} style={{ fontFamily:"monospace",fontSize:12,color:C.navy,padding:"3px 0",borderBottom:`1px solid ${C.mutedL}` }}>{v}</div>)}
+                  {importRaw.split("\n").filter(Boolean).length>5&&<p style={{ margin:"6px 0 0",fontSize:11,color:C.muted }}>+ {importRaw.split("\n").filter(Boolean).length-5} autres...</p>}
                 </div>
-                <div style={{ display:"flex",gap:8 }}><Btn variant="ghost" onClick={()=>setImportStep(1)} style={{ flex:1,justifyContent:"center" }}>← Modifier</Btn><Btn onClick={importEntries} style={{ flex:2,justifyContent:"center",background:TAB_COLOR[activeTab],border:"none",color:C.white }}>✅ Confirmer</Btn></div>
+                <div style={{ display:"flex",gap:8 }}><Btn variant="ghost" onClick={()=>setImportStep(1)} style={{ flex:1,justifyContent:"center" }}>← Modifier</Btn><Btn onClick={importEntries} style={{ flex:2,justifyContent:"center",background:activeTab!=="all"?TAB_COLOR[activeTab]:C.navy,border:"none",color:C.white }}>Importer {importRaw.split("\n").filter(Boolean).length} entrées</Btn></div>
               </div>
             )}
           </div>

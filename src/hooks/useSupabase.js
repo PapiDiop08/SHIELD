@@ -32,7 +32,10 @@ export function useOperators() {
           blocked: blockedRes.count || 0,
         };
       }));
-      setOperatorsState(enriched);
+      if (enriched.length > 0) setOperatorsState(enriched);
+      else setOperatorsState(MOCK_OPERATORS || []);
+    } else {
+      setOperatorsState(MOCK_OPERATORS || []);
     }
     setLoading(false);
   }, []);
@@ -120,23 +123,26 @@ export function useAlerts(operatorFilter) {
   const fetch = useCallback(async () => {
     let query = supabase
       .from('alerts')
-      .select('*, operators(name)')
-      .order('detected_at', { ascending: false })
-      .limit(200);
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
     if (operatorFilter) query = query.eq('operator_id', operatorFilter);
     const { data, error } = await query;
-    if (!error && data) {
+    if (!error && data && data.length > 0) {
       setAlertsState(data.map(a => ({
         id: a.id,
-        time: new Date(a.detected_at).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}),
-        createdAt: a.detected_at,
+        time: new Date(a.created_at || a.detected_at || Date.now()).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'}),
+        createdAt: a.created_at || a.detected_at,
         msisdn: a.msisdn, imei: a.imei || '', imsi: a.imsi || '',
-        cellId: a.cell_id || '', type: a.fraud_type, severity: a.severity,
+        cellId: a.cell_id || '', type: a.fraud_type || a.type, severity: a.severity,
         score: a.score || 0, status: a.status, assignedTo: a.assigned_to,
         caseId: a.case_id, operatorId: a.operator_id,
-        operator: a.operators?.name || '—',
-        rule: a.rule_id || '', notes: a.notes || [],
+        operator: a.operator || a.operator_id || '—',
+        rule: a.rule_id || a.reason || '', notes: a.notes || [],
+        triggeredRules: a.triggered_rules || (a.reason ? [a.reason] : []),
       })));
+    } else {
+      setAlertsState(MOCK_ALERTS || []);
     }
     setLoading(false);
   }, [operatorFilter]);
@@ -180,7 +186,7 @@ export function useRules() {
         severity: r.severity, action: r.action, scope: r.scope || 'global',
         active: r.active, triggered: r.triggered || 0, blocked: r.blocked || 0,
         conditions: r.conditions || [], createdBy: r.created_by,
-        creatorName: 'GFM',
+        creatorName: "AAR",
         date: r.created_at?.slice(0,10), operator: r.operator_id, caseId: r.case_id,
       })));
     }
@@ -235,16 +241,16 @@ export function useBlockings(operatorFilter) {
 
   const fetch = useCallback(async () => {
     let query = supabase.from('blockings')
-      .select('*, operators(name)')
-      .order('blocked_at', { ascending: false });
+      .select('*')
+      .order('created_at', { ascending: false });
     if (operatorFilter) query = query.eq('operator_id', operatorFilter);
     const { data, error } = await query;
     if (!error && data) {
       setBlockingsState(data.map(b => ({
         id: b.id, msisdn: b.msisdn, imei: b.imei || '', imsi: b.imsi || '',
-        cellId: b.cell_id || '', operator: b.operators?.name || '—',
+        cellId: b.cell_id || '', operator: b.operator || b.operator_id || '—',
         operatorId: b.operator_id, blockedBy: b.blocked_by,
-        blockerName: 'GFM', reason: b.reason,
+        blockerName: "AAR", reason: b.reason,
         source: b.source, interOpSource: b.inter_op_source,
         notes: b.notes, active: b.active, date: b.blocked_at,
         autoFlagged: b.auto_flagged || [],
@@ -513,7 +519,7 @@ export function useDashboardStats(operatorId = null) {
 
 
 // ─────────────────────────────────────────────────────────────
-// useSimProfile — profil complet SIM depuis Supabase
+// useSimProfile — profil complet SIM depuis AAR DB
 // ─────────────────────────────────────────────────────────────
 export function useSimProfile(msisdn) {
   const [profile, setProfile] = useState(null);
@@ -609,10 +615,7 @@ export function useCases(operatorId = null) {
     try {
       let q = supabase
         .from('cases')
-        .select(`
-          *,
-          operators(name, code)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
       if (operatorId) q = q.eq('operator_id', operatorId);
       const { data, error: err } = await q;
@@ -677,7 +680,7 @@ export function useCellAnomalies(operatorId = null) {
     try {
       let q = supabase
         .from('cell_anomalies')
-        .select('*, operators(name, code)')
+        .select('*')
         .order('detected_at', { ascending: false });
       if (operatorId) q = q.eq('operator_id', operatorId);
       const { data, error: err } = await q;
@@ -871,7 +874,7 @@ export function useBillingStats() {
 
 
 // ─────────────────────────────────────────────────────────────
-// useAuditLogs — depuis table audit_logs Supabase
+// useAuditLogs — depuis table audit_logs AAR DB
 // ─────────────────────────────────────────────────────────────
 export function useAuditLogs(filters = {}) {
   const [logs, setLogs] = useState([]);

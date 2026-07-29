@@ -1,4 +1,5 @@
 import { C, ROLES } from "./theme.js";
+import { Icon } from "./icons.jsx";
 
 export function Badge({ label, color, small }) {
   return (
@@ -37,15 +38,20 @@ export function Card({ children, style, onClick }) {
 }
 
 export function Stat({ value, label, color, sub, icon }) {
+  const iconColor = color || C.navy;
   return (
-    <Card style={{ padding: "16px 18px", flex: 1, minWidth: 120 }}>
+    <Card style={{ padding: "16px 20px", flex: 1, minWidth: 130 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: color || C.navy, lineHeight: 1 }}>{value}</div>
-          {sub && <div style={{ fontSize: 11, color: C.success, marginTop: 3, fontWeight: 600 }}>{sub}</div>}
-          <div style={{ fontSize: 11, color: C.textL, marginTop: 6 }}>{label}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 26, fontWeight: 900, color: iconColor, lineHeight: 1, letterSpacing: -0.5 }}>{value}</div>
+          {sub && <div style={{ fontSize: 11, color: C.success, marginTop: 4, fontWeight: 700 }}>{sub}</div>}
+          <div style={{ fontSize: 11, color: C.textL, marginTop: 7, fontWeight: 500 }}>{label}</div>
         </div>
-        {icon && <div style={{ fontSize: 18, opacity: 0.4 }}>{icon}</div>}
+        {icon && (
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: iconColor + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name={icon} size={16} color={iconColor} strokeWidth={1.75} />
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -92,9 +98,11 @@ export function SectionHeader({ title, sub, action }) {
 
 export function EmptyState({ icon, text }) {
   return (
-    <div style={{ padding: "48px 24px", textAlign: "center", color: C.muted }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>{icon}</div>
-      <p style={{ margin: 0, fontSize: 14 }}>{text}</p>
+    <div style={{ padding: "52px 24px", textAlign: "center", color: C.muted }}>
+      <div style={{ width: 52, height: 52, borderRadius: 14, background: C.mutedL, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+        <Icon name={icon || "reports"} size={22} color={C.muted} strokeWidth={1.5} />
+      </div>
+      <p style={{ margin: 0, fontSize: 13, color: C.textL }}>{text}</p>
     </div>
   );
 }
@@ -102,7 +110,7 @@ export function EmptyState({ icon, text }) {
 export function SearchInput({ value, onChange, placeholder = "Rechercher..." }) {
   return (
     <div style={{ position: "relative", flex: 1, minWidth: 160 }}>
-      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted, fontSize: 13 }}>🔍</span>
+      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted, fontSize: 13 }}>Rch</span>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         style={{ width: "100%", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "8px 10px 8px 30px", fontSize: 12, color: C.navy, outline: "none", boxSizing: "border-box", background: C.white }} />
     </div>

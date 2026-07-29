@@ -157,7 +157,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
             {/* Bouton télécharger CSV */}
             <div style={{ position: "relative" }}>
               <Btn variant="secondary" onClick={() => setShowDownloadMenu(!showDownloadMenu)}>
-                📥 Télécharger CSV
+                Import Télécharger CSV
               </Btn>
               {showDownloadMenu && (
                 <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: C.white, border: `1px solid ${C.mutedL}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 99, minWidth: 260, overflow: "hidden" }}>
@@ -174,7 +174,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
                       style={{ padding: "12px 16px", cursor: opt.disabled || opt.rows.length === 0 ? "not-allowed" : "pointer", opacity: opt.disabled || opt.rows.length === 0 ? 0.4 : 1, borderBottom: `1px solid ${C.mutedL}`, fontSize: 13, color: C.navy, fontWeight: 600 }}
                       onMouseOver={e => { if (!opt.disabled) e.currentTarget.style.background = C.bg; }}
                       onMouseOut={e => e.currentTarget.style.background = C.white}>
-                      📄 {opt.label}
+                      PDF {opt.label}
                     </div>
                   ))}
                   <div style={{ padding: "10px 16px", fontSize: 11, color: C.muted, background: C.bg }}>
@@ -236,7 +236,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
         {hasFilters && (
           <button onClick={() => { setSearch(""); setFilterSev("all"); setFilterStatus("all"); setFilterType("all"); setFilterAssigned("all"); setDateFrom(""); setDateTo(""); }}
             style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>
-            ✕ Effacer
+            X Effacer
           </button>
         )}
       </div>
@@ -255,7 +255,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
 
           {/* Assigner */}
           <div style={{ position: "relative" }}>
-            <Btn variant="sky" small onClick={() => setShowAssignMenu(!showAssignMenu)}>👤 Assigner</Btn>
+            <Btn variant="sky" small onClick={() => setShowAssignMenu(!showAssignMenu)}>USR Assigner</Btn>
             {showAssignMenu && (
               <div style={{ position: "absolute", top: "100%", right: 0, background: C.white, border: `1px solid ${C.mutedL}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 99, minWidth: 200, marginTop: 4, maxHeight: 240, overflowY: "auto" }}>
                 {analysts.map(u => (
@@ -271,21 +271,21 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
           </div>
 
           <Btn variant="warning" small onClick={() => { selected.forEach(id => doUpdateStatus(id, "investigating")); setSelected([]); }}>
-            🔍 En cours
+            Rch En cours
           </Btn>
 
           {/* Bloquer manuellement — option pour clients sans auto-block */}
           <Btn variant="danger" small onClick={() => setConfirm({ bulk: true, status: "blocked", msg: `Bloquer manuellement ${selected.length} détection(s) ?` })}>
-            🚫 Bloquer ({selected.length})
+            [X] Bloquer ({selected.length})
           </Btn>
 
           <Btn variant="success" small onClick={() => setConfirm({ alertId: null, status: "cleared", bulk: true, msg: `Clôturer ${selected.length} détections ?` })}>
-            ✓ Clôturer
+            v Clôturer
           </Btn>
 
           {/* Export sélection */}
           <Btn variant="ghost" small onClick={() => exportCSV((alerts||[]).filter(a => selected.includes(a.id)), "selection_detections.csv")}>
-            📥 CSV
+            Import CSV
           </Btn>
         </div>
       )}
@@ -293,12 +293,12 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div style={{ fontSize: 12, color: C.textL }}>
           {filtered.length} détection{filtered.length > 1 ? "s" : ""}
-          {toBlock.length > 0 && <span style={{ color: C.danger, fontWeight: 700, marginLeft: 12 }}>⚠ {toBlock.length} à bloquer</span>}
+          {toBlock.length > 0 && <span style={{ color: C.danger, fontWeight: 700, marginLeft: 12 }}>! {toBlock.length} à bloquer</span>}
         </div>
         {toBlock.length > 0 && (
           <button onClick={() => exportCSV(toBlock, "detections_a_bloquer.csv")}
             style={{ background: C.dangerL, border: `1px solid ${C.danger}44`, color: C.danger, borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-            📥 Exporter les {toBlock.length} à bloquer
+            Import Exporter les {toBlock.length} à bloquer
           </button>
         )}
       </div>
@@ -313,7 +313,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
                   <input type="checkbox" checked={allSel} onChange={() => allSel ? setSelected([]) : setSelected(filtered.map(a => a.id))}
                     style={{ cursor: "pointer", accentColor: C.red }} />
                 </th>
-                {["", "Date · Heure", "MSISDN", "Type · Opérateur", "Score", "Statut", "Assigné", "Actions"].map(h => (
+                {["", "Date · Heure", "MSISDN", "Type · Opérateur", "Règle déclenchée", "Score", "Statut", "Assigné", "Actions"].map(h => (
                   <th key={h} style={{ padding: "10px 10px", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -321,7 +321,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={9} style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>Aucune détection
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>Rch</div>Aucune détection
                 </td></tr>
               )}
               {filtered.map(a => {
@@ -350,6 +350,16 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
                     <td style={{ padding: "10px", cursor: "pointer" }} onClick={() => setSimProfile({ msisdn: a.msisdn, score: a.score, fraudType: a.type })}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: C.navy, whiteSpace: "nowrap" }}>{fraudCatIcon(a.type)} {a.type}</div>
                       <div style={{ fontSize: 11, color: C.textL, whiteSpace: "nowrap" }}>{a.operator}</div>
+                    </td>
+                    <td style={{ padding: "10px", maxWidth: 200 }}>
+                      {(a.triggeredRules && a.triggeredRules.length > 0)
+                        ? <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                            {a.triggeredRules.slice(0,2).map((r,i) => (
+                              <span key={i} style={{ background: "#eef2ff", color: "#3730a3", borderRadius: 4, padding: "2px 6px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }} title={r}>{r}</span>
+                            ))}
+                            {a.triggeredRules.length > 2 && <span style={{ fontSize: 10, color: C.muted }}>+{a.triggeredRules.length-2}</span>}
+                          </div>
+                        : <span style={{ fontSize: 11, color: C.muted }}>{a.rule || a.reason || "—"}</span>}
                     </td>
                     <td style={{ padding: "10px", textAlign: "center" }}>
                       <div style={{ fontSize: 18, fontWeight: 900, color: (a.score || 0) >= 80 ? C.danger : (a.score || 0) >= 60 ? C.warning : C.sky }}>

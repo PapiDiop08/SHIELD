@@ -16,8 +16,8 @@ import UDFManager from "./pages/UDFManager.jsx";
 import Settings from "./pages/Settings.jsx";
 import Operators from "./pages/Operators.jsx";
 import Blockings from "./pages/Blockings.jsx";
-import AIAnalysis from "./pages/AIAnalysis.jsx";
 import Billing from "./pages/Billing.jsx";
+import Distributors from "./pages/Distributors.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
 import SimProfile from "./pages/SimProfile.jsx";
 
@@ -42,7 +42,7 @@ function LoadingScreen() {
         <path d="M100 10 L180 50 L180 120 Q180 165 100 190 Q20 165 20 120 L20 50 Z" fill="#E83A2E" opacity="0.9"/>
         <text x="100" y="130" textAnchor="middle" fontSize="58" fontWeight="900" fill="white" fontFamily="Arial">G</text>
       </svg>
-      <div style={{ color: "#fff", fontWeight: 700, fontSize: 18, letterSpacing: 1 }}>SHIELD</div>
+      <div style={{ color: "#fff", fontWeight: 700, fontSize: 18, letterSpacing: 1 }}>AAR Telco</div>
       <div style={{ color: "#8A9BB5", fontSize: 13 }}>Chargement en cours…</div>
       <div style={{ display: "flex", gap: 6 }}>
         {[0,1,2].map(i => (
@@ -72,7 +72,7 @@ function AppInner() {
   const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(null);
   const { complaints, setComplaints } = useComplaints(null);
 
-  // ── Fallback : si Supabase retourne vide, on utilise les MOCK_USERS/MOCK_OPERATORS
+  // ── Fallback : si AAR DB retourne vide, on utilise les MOCK_USERS/MOCK_OPERATORS
   // Ça évite les pages blanches si la table users/operators est vide ou RLS bloquant
   const users = supabaseUsers.length > 0 ? supabaseUsers : MOCK_USERS;
   const operators = supabaseOperators.length > 0 ? supabaseOperators : MOCK_OPERATORS;
@@ -84,7 +84,7 @@ function AppInner() {
   const operatorIdFilter = isGFM() ? null : currentOperator?.id;
 
   // ── Attendre que les données essentielles soient prêtes ──────────────────
-  // On affiche l'écran de chargement seulement si on n'a ni données Supabase ni mock
+  // On affiche l'écran de chargement seulement si on n'a ni données ni mock
   const isReady = operators.length > 0;
 
   const addLogEnhanced = (action, entity, entityId, detail, pg) => {
@@ -172,8 +172,9 @@ function AppInner() {
       {page === "settings"   && <Settings   {...sharedProps} />}
       {page === "operators"  && <Operators  {...sharedProps} />}
       {page === "blockings"  && <Blockings  {...sharedProps} />}
-      {page === "ai"         && <AIAnalysis {...sharedProps} />}
-      {page === "billing"    && <Billing    {...sharedProps} />}
+      {page === "ai"         && null}
+      {page === "billing"       && <Billing      {...sharedProps} />}
+      {page === "distributors"  && <Distributors {...sharedProps} />}
     </Layout>
   );
 }

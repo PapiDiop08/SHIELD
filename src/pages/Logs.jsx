@@ -1,5 +1,5 @@
 // ── SHIELD Logs Page — FULL LINK ─────────────────────────────────────────────
-// Données depuis audit_logs Supabase — plus de MOCK_LOGS
+// Données depuis audit_logs AAR DB — plus de MOCK_LOGS
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { C } from "../theme.js";
@@ -25,18 +25,18 @@ const ACTION_COLORS = {
 };
 
 const ACTION_ICONS = {
-  LOGIN: "🔐", LOGOUT: "⎋",
-  CREATE_RULE: "⚙", EDIT_RULE: "✏",
-  BLOCK_SIM: "🚫", BLOCK_SIM_MANUAL: "🚫", UNBLOCK_SIM: "✅",
-  ADD_BLACKLIST: "📋", ASSIGN_ALERT: "👤",
-  CREATE_CASE: "📁", CREATE_USER: "👤",
-  CHANGE_ROLE: "🛡", RESET_PASSWORD: "🔑", CHANGE_PASSWORD: "🔑",
-  VIEW_PAGE: "👁", ADD_NOTE: "📝",
-  AI_ANALYSIS_START: "🧠", AI_ANALYSIS_DONE: "✅",
-  BLACKLIST_CELL: "📡",
+  LOGIN: "AUTH", LOGOUT: "⎋",
+  CREATE_RULE: "CFG", EDIT_RULE: "Edit",
+  BLOCK_SIM: "[X]", BLOCK_SIM_MANUAL: "[X]", UNBLOCK_SIM: "OK",
+  ADD_BLACKLIST: "LOG", ASSIGN_ALERT: "USR",
+  CREATE_CASE: "Doc", CREATE_USER: "USR",
+  CHANGE_ROLE: "SEC", RESET_PASSWORD: "KEY", CHANGE_PASSWORD: "KEY",
+  VIEW_PAGE: "WATCH", ADD_NOTE: "NOTE",
+  AI_ANALYSIS_START: "IA", AI_ANALYSIS_DONE: "OK",
+  BLACKLIST_CELL: "ANT",
 };
 
-// ── Hook : audit_logs depuis Supabase ────────────────────────────────────
+// ── Hook : audit_logs depuis AAR DB ────────────────────────────────────
 function useAuditLogs() {
   const [dbLogs, setDbLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +91,7 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
 
   const { dbLogs, loading, refetch } = useAuditLogs();
 
-  // Fusionner logs Supabase + logs session live (sans doublons)
+  // Fusionner logs AAR DB + logs session live (sans doublons)
   const allLogs = useMemo(() => {
     const combined = [...dbLogs, ...(liveLogs || [])];
     const seen = new Set();
@@ -125,20 +125,20 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
         title="Audit Log"
-        sub={loading ? "Chargement depuis Supabase…" : `${allLogs.length} événements · Registre Supabase + session`}
+        sub={loading ? "Chargement chargement…" : `${allLogs.length} événements · Registre d'activité`}
         action={
           <button onClick={refetch}
             style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
-            🔄 Actualiser
+            Sync Actualiser
           </button>
         }
       />
 
       {/* Bannière sécurité */}
       <div style={{ background: C.navyL, border: `1px solid ${C.navyB}`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-        <span>🔒</span>
+        <span>SEC</span>
         <span style={{ fontSize: 12, color: C.white, fontWeight: 600 }}>
-          Toutes les actions sont enregistrées automatiquement dans Supabase — Non modifiable, non supprimable
+          Toutes les actions sont enregistrées automatiquement automatiquement — Non modifiable, non supprimable
         </span>
       </div>
 
@@ -178,7 +178,7 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
         {(search || filterAction !== "all" || filterUser !== "all") && (
           <button onClick={() => { setSearch(""); setFilterAction("all"); setFilterUser("all"); }}
             style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-            ✕ Effacer
+            X Effacer
           </button>
         )}
       </div>
@@ -201,7 +201,7 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
               {loading && (
                 <tr>
                   <td colSpan={6} style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-                    ⏳ Chargement depuis Supabase…
+                    … Chargement chargement…
                   </td>
                 </tr>
               )}

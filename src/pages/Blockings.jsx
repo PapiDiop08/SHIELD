@@ -13,7 +13,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
   const [showImport, setShowImport] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [importRaw, setImportRaw] = useState("");
-  const [addForm, setAddForm] = useState({ msisdn:"",reason:"",source:"analyst",operator:currentUser?.operator||"Orange Sénégal",notes:"",interOpSource:"" });
+  const [addForm, setAddForm] = useState({ msisdn:"",reason:"",source:"analyst",operator:currentUser?.operator||"Partner 1",notes:"",interOpSource:"" });
   const [toast, setToast] = useState(null);
 
   function showToast(msg, color=C.success) { setToast({msg,color}); setTimeout(()=>setToast(null),3000); }
@@ -53,7 +53,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
     setBlacklist(p => [{id:Date.now(),list:"blacklist",type:"MSISDN",value:addForm.msisdn,reason:addForm.reason,addedBy:currentUser?.id,date:new Date().toISOString().slice(0,10),active:true,matches:0,lastMatch:null},...p]);
     addLog?.("BLOCK_SIM","blocking",b.id,`Blocage ${addForm.msisdn} — ${addForm.reason}`,"Blocages");
     setShowAdd(false);
-    setAddForm({msisdn:"",reason:"",source:"analyst",operator:currentUser?.operator||"Orange Sénégal",notes:"",interOpSource:""});
+    setAddForm({msisdn:"",reason:"",source:"analyst",operator:currentUser?.operator||"Partner 1",notes:"",interOpSource:""});
     showToast(`${b.msisdn} bloquée`, C.danger);
   }
 
@@ -68,7 +68,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
     showToast(`${lines.length} SIMs bloquées`, C.danger);
   }
 
-  const sourceLabel = { shield_auto:"🤖 Auto", analyst:"👤 Analyste", inter_operator:"🔄 Inter-op" };
+  const sourceLabel = { shield_auto:"BOT Auto", analyst:"USR Analyste", inter_operator:"Sync Inter-op" };
   const userName = id => users?.find(u=>u.id===id)?.name?.split(" ")[0] || "Auto";
 
   return (
@@ -77,8 +77,8 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
 
       <SectionHeader title="Gestion des blocages" sub={`${statsTotal} SIMs bloquées actives`}
         action={<>
-          {can("blockSIM") && <Btn variant="secondary" small onClick={()=>setShowImport(true)}>📤 Import</Btn>}
-          {can("blockSIM") && <Btn onClick={()=>setShowAdd(true)}>🚫 Bloquer</Btn>}
+          {can("blockSIM") && <Btn variant="secondary" small onClick={()=>setShowImport(true)}>Export Import</Btn>}
+          {can("blockSIM") && <Btn onClick={()=>setShowAdd(true)}>[X] Bloquer</Btn>}
         </>} />
 
       {/* Stats */}
@@ -95,9 +95,9 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
       <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
         <SearchInput value={search} onChange={setSearch} placeholder="MSISDN, IMEI, raison..." />
         {isGFM() && <Select value={filterOp} onChange={setFilterOp} options={[{value:"all",label:"Tous opérateurs"},...operators.map(o=>({value:o.name,label:o.name}))]} />}
-        <Select value={filterSource} onChange={setFilterSource} options={[{value:"all",label:"Toutes sources"},{value:"shield_auto",label:"🤖 Auto"},{value:"analyst",label:"👤 Analyste"},{value:"inter_operator",label:"🔄 Inter-op"}]} />
+        <Select value={filterSource} onChange={setFilterSource} options={[{value:"all",label:"Toutes sources"},{value:"shield_auto",label:"BOT Auto"},{value:"analyst",label:"USR Analyste"},{value:"inter_operator",label:"Sync Inter-op"}]} />
         <Select value={filterActive} onChange={setFilterActive} options={[{value:"all",label:"Tous"},{value:"active",label:"Actifs"},{value:"inactive",label:"Débloqués"}]} />
-        {(search||filterOp!=="all"||filterSource!=="all") && <button onClick={()=>{setSearch("");setFilterOp("all");setFilterSource("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>✕</button>}
+        {(search||filterOp!=="all"||filterSource!=="all") && <button onClick={()=>{setSearch("");setFilterOp("all");setFilterSource("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>X</button>}
       </div>
 
       <div style={{fontSize:12,color:C.textL,marginBottom:8}}>{filtered.length} blocage{filtered.length>1?"s":""}</div>
@@ -114,7 +114,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
               </tr>
             </thead>
             <tbody>
-              {filtered.length===0 && <tr><td colSpan={7} style={{padding:"40px",textAlign:"center",color:C.muted}}><div style={{fontSize:28,marginBottom:8}}>🛑</div>Aucun blocage trouvé</td></tr>}
+              {filtered.length===0 && <tr><td colSpan={7} style={{padding:"40px",textAlign:"center",color:C.muted}}><div style={{fontSize:28,marginBottom:8}}>BLK</div>Aucun blocage trouvé</td></tr>}
               {filtered.map((b,idx) => {
                 const blocker = users?.find(u=>u.id===b.blockedBy);
                 return (
@@ -137,7 +137,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
                     </td>
                     <td style={{padding:"10px 12px",fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{b.date?.slice(0,10)}</td>
                     <td style={{padding:"10px 12px"}}>
-                      <Badge label={b.active?"🔴 Bloqué":"✅ Débloqué"} color={b.active?C.danger:C.success} small />
+                      <Badge label={b.active?"R Bloqué":"OK Débloqué"} color={b.active?C.danger:C.success} small />
                     </td>
                     <td style={{padding:"8px 12px"}}>
                       <div style={{display:"flex",gap:4}}>
@@ -164,7 +164,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
 
             <label style={{display:"block",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:6}}>Source</label>
             <div style={{display:"flex",gap:8,marginBottom:14}}>
-              {[{v:"analyst",l:"👤 Analyste"},{v:"inter_operator",l:"🔄 Inter-op"}].map(s=>(
+              {[{v:"analyst",l:"USR Analyste"},{v:"inter_operator",l:"Sync Inter-op"}].map(s=>(
                 <button key={s.v} onClick={()=>setAddForm(f=>({...f,source:s.v}))} style={{flex:1,padding:"8px",background:addForm.source===s.v?`${C.sky}18`:C.bg,border:`2px solid ${addForm.source===s.v?C.sky:C.mutedL}`,borderRadius:8,color:addForm.source===s.v?C.sky:C.textL,cursor:"pointer",fontSize:12,fontWeight:700}}>{s.l}</button>
               ))}
             </div>
@@ -206,7 +206,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" onClick={()=>setShowAdd(false)} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>
               <Btn onClick={()=>setConfirm({action:"add",b:{msisdn:addForm.msisdn},msg:`Bloquer ${addForm.msisdn} ?`})} disabled={!addForm.msisdn||!addForm.reason}
-                style={{flex:2,justifyContent:"center",background:C.danger,border:"none",color:C.white}}>🚫 Confirmer le blocage</Btn>
+                style={{flex:2,justifyContent:"center",background:C.danger,border:"none",color:C.white}}>[X] Confirmer le blocage</Btn>
             </div>
           </div>
         </Modal>
@@ -217,7 +217,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
         <Modal title="Import batch — Blocages" onClose={()=>setShowImport(false)} width={480}>
           <div style={{padding:"20px 24px"}}>
             <div style={{display:"flex",gap:8,marginBottom:14}}>
-              {[{v:"analyst",l:"👤 Analyste"},{v:"inter_operator",l:"🔄 Inter-op"}].map(s=>(
+              {[{v:"analyst",l:"USR Analyste"},{v:"inter_operator",l:"Sync Inter-op"}].map(s=>(
                 <button key={s.v} onClick={()=>setAddForm(f=>({...f,source:s.v}))} style={{flex:1,padding:"8px",background:addForm.source===s.v?`${C.sky}18`:C.bg,border:`2px solid ${addForm.source===s.v?C.sky:C.mutedL}`,borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:700,color:addForm.source===s.v?C.sky:C.textL}}>{s.l}</button>
               ))}
             </div>
@@ -229,7 +229,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" onClick={()=>setShowImport(false)} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>
               <Btn onClick={importBatch} disabled={!importRaw.trim()||!addForm.reason} style={{flex:2,justifyContent:"center",background:C.danger,border:"none",color:C.white}}>
-                🚫 Bloquer {importRaw.split("\n").filter(Boolean).length} numéros
+                [X] Bloquer {importRaw.split("\n").filter(Boolean).length} numéros
               </Btn>
             </div>
           </div>

@@ -1,6 +1,6 @@
 // ── SHIELD Reports Page — FULL LINK ─────────────────────────────────────────
 // Plus de WEEKLY_DATA / PIE_DATA / TREND_DATA mockés
-// Tout calculé depuis les alertes Supabase passées en props
+// Tout calculé depuis les alertes passées en props
 
 import { useState, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
@@ -40,7 +40,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
   const [selectedType, setSelectedType] = useState("all");
   const [activeTab, setActiveTab] = useState("overview");
 
-  // ── Filtrage depuis les alertes Supabase (props) ──────────────────────
+  // ── Filtrage depuis les alertes (props) ──────────────────────
   const filtered = useMemo(() => {
     let list = [...alerts];
     if (selectedType !== "all") list = list.filter(a => a.type === selectedType);
@@ -135,8 +135,8 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
         title="Rapports & Analyse"
-        sub="Statistiques calculées depuis les alertes Supabase en temps réel"
-        action={<Btn variant="ghost">📥 Exporter PDF</Btn>}
+        sub="Statistiques calculées depuis les alertes en temps réel"
+        action={<Btn variant="ghost">Import Exporter PDF</Btn>}
       />
 
       {/* Filtres */}
@@ -150,21 +150,21 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
         {selectedType !== "all" && (
           <button onClick={() => setSelectedType("all")}
             style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-            ✕ Effacer
+            X Effacer
           </button>
         )}
         <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>
-          {filtered.length} alertes — données Supabase
+          {filtered.length} alertes — données
         </span>
       </div>
 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <Stat value={filtered.length} label="Détections" color={C.sky} icon="🎯" sub={PERIODS.find(p => p.value === period)?.label} />
-        <Stat value={blocked.length} label="Fraudes bloquées" color={C.danger} icon="🚫" sub={`${detRate}% taux`} />
-        <Stat value={`${(totalSaved / 1000000).toFixed(1)}M XOF`} label="Revenus sauvés (est.)" color={C.success} icon="💰" />
-        <Stat value={`${fpRate}%`} label="Taux faux positifs" color={fpRate > 10 ? C.danger : fpRate > 5 ? C.warning : C.success} icon="⚠" />
-        <Stat value={(rules||[]).filter(r => r.active).length} label="Règles actives" color={C.warning} icon="⚙" />
+        <Stat value={filtered.length} label="Détections" color={C.sky} icon="[*]" sub={PERIODS.find(p => p.value === period)?.label} />
+        <Stat value={blocked.length} label="Fraudes bloquées" color={C.danger} icon="[X]" sub={`${detRate}% taux`} />
+        <Stat value={`${(totalSaved / 1000000).toFixed(1)}M XOF`} label="Revenus sauvés (est.)" color={C.success} icon="FIN" />
+        <Stat value={`${fpRate}%`} label="Taux faux positifs" color={fpRate > 10 ? C.danger : fpRate > 5 ? C.warning : C.success} icon="!" />
+        <Stat value={(rules||[]).filter(r => r.active).length} label="Règles actives" color={C.warning} icon="CFG" />
       </div>
 
       {/* Tabs */}
@@ -344,7 +344,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
       {activeTab === "trend" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Card style={{ padding: "18px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 14 }}>Détections vs Blocages — 7 jours (Supabase)</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 14 }}>Détections vs Blocages — 7 jours </div>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={trendData} barGap={4}>
                 <XAxis dataKey="d" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -375,7 +375,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
           </Card>
 
           <Card style={{ padding: "18px 20px" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 14 }}>Fraudes par type — 7 jours (Supabase)</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 14 }}>Fraudes par type — 7 jours </div>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={weeklyData} barSize={12}>
                 <XAxis dataKey="d" tick={{ fill: C.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -406,7 +406,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
             </Card>
             <Card style={{ flex: 1, minWidth: 120, padding: "14px 18px", borderTop: `3px solid ${C.success}` }}>
               <div style={{ fontSize: 22, fontWeight: 900, color: C.success }}>
-                {fpRate <= 5 ? "✓ Bon" : fpRate <= 10 ? "⚠ Moyen" : "✗ Élevé"}
+                {fpRate <= 5 ? "v Bon" : fpRate <= 10 ? "! Moyen" : "Élevé"}
               </div>
               <div style={{ fontSize: 11, color: C.textL }}>Qualité</div>
             </Card>
@@ -436,13 +436,13 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
                         <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.warning }}>{t.fp}</td>
                         <td style={{ padding: "10px 14px" }}><Badge label={`${fpR}%`} color={fpR > 10 ? C.danger : fpR > 5 ? C.warning : C.success} small /></td>
                         <td style={{ padding: "10px 14px", fontSize: 11, color: C.muted }}>
-                          {fpR > 10 ? "⚠ Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "✓ Normal"}
+                          {fpR > 10 ? "! Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "v Normal"}
                         </td>
                       </tr>
                     );
                   })}
                   {byType.filter(t => t.fp > 0).length === 0 && (
-                    <tr><td colSpan={5} style={{ padding: "32px", textAlign: "center", color: C.muted }}>Aucun faux positif 🎉</td></tr>
+                    <tr><td colSpan={5} style={{ padding: "32px", textAlign: "center", color: C.muted }}>Aucun faux positif </td></tr>
                   )}
                 </tbody>
               </table>

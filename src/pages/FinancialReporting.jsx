@@ -91,22 +91,22 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
   return (
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader title="Financial Reporting" sub="Analyse financière et statistiques par type de fraude"
-        action={<Btn variant="ghost">📥 Exporter PDF</Btn>} />
+        action={<Btn variant="ghost">Import Exporter PDF</Btn>} />
 
       {/* Filters */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         <Select value={period} onChange={setPeriod} options={PERIODS} />
         <Select value={selectedType} onChange={setSelectedType} options={[{ value: "all", label: "Tous les types" }, ...ALL_FRAUD_TYPES.map(t => ({ value: t, label: `${fraudCatIcon(t)} ${t}` }))]} />
-        {(selectedType !== "all") && <button onClick={() => setSelectedType("all")} style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>✕ Effacer filtre</button>}
+        {(selectedType !== "all") && <button onClick={() => setSelectedType("all")} style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>Effacer filtre</button>}
       </div>
 
       {/* KPI Cards */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <Stat value={filteredAlerts.length} label="Détections totales" color={C.sky} icon="🎯" sub={`${PERIODS.find(p => p.value === period)?.label}`} />
-        <Stat value={blockedAlerts.length} label="Fraudes bloquées" color={C.danger} icon="🚫" sub={`${detectionRate}% taux blocage`} />
-        <Stat value={`${totalSaved.toLocaleString()} XOF`} label="Revenus sauvegardés (est.)" color={C.success} icon="💰" />
-        <Stat value={`${fpRate}%`} label="Taux faux positifs" color={fpRate > 10 ? C.danger : fpRate > 5 ? C.warning : C.success} icon="⚠" />
-        <Stat value={cases?.filter(c => c.status !== "closed").length || 0} label="Cases actifs" color={C.purple} icon="📁" />
+        <Stat value={filteredAlerts.length} label="Détections totales" color={C.sky} icon="[*]" sub={`${PERIODS.find(p => p.value === period)?.label}`} />
+        <Stat value={blockedAlerts.length} label="Fraudes bloquées" color={C.danger} icon="BLK" sub={`${detectionRate}% taux blocage`} />
+        <Stat value={`${totalSaved.toLocaleString()} XOF`} label="Revenus sauvegardés (est.)" color={C.success} icon="FIN" />
+        <Stat value={`${fpRate}%`} label="Taux faux positifs" color={fpRate > 10 ? C.danger : fpRate > 5 ? C.warning : C.success} icon="!" />
+        <Stat value={cases?.filter(c => c.status !== "closed").length || 0} label="Cases actifs" color={C.purple} icon="Doc" />
       </div>
 
       {/* Tabs */}
@@ -311,7 +311,7 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
               <div style={{ fontSize: 11, color: C.textL }}>Taux global</div>
             </Card>
             <Card style={{ flex: 1, minWidth: 120, padding: "14px 18px", borderTop: `3px solid ${C.success}` }}>
-              <div style={{ fontSize: 22, fontWeight: 900, color: C.success }}>{fpRate <= 5 ? "✓ Bon" : fpRate <= 10 ? "⚠ Moyen" : "✗ Élevé"}</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: C.success }}>{fpRate <= 5 ? "v Bon" : fpRate <= 10 ? "! Moyen" : "Élevé"}</div>
               <div style={{ fontSize: 11, color: C.textL }}>Niveau qualité</div>
             </Card>
             <Card style={{ flex: 2, minWidth: 200, padding: "14px 18px" }}>
@@ -340,11 +340,11 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
                         <td style={{ padding: "10px 14px", fontSize: 13, color: C.textL }}>{t.total}</td>
                         <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.warning }}>{t.fp}</td>
                         <td style={{ padding: "10px 14px" }}><Badge label={`${fpR}%`} color={fpR > 10 ? C.danger : fpR > 5 ? C.warning : C.success} small /></td>
-                        <td style={{ padding: "10px 14px", fontSize: 11, color: C.muted }}>{fpR > 10 ? "⚠ Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "✓ Normal"}</td>
+                        <td style={{ padding: "10px 14px", fontSize: 11, color: C.muted }}>{fpR > 10 ? "! Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "v Normal"}</td>
                       </tr>
                     );
                   })}
-                  {byType.filter(t => t.fp > 0).length === 0 && <tr><td colSpan={5} style={{ padding: "32px", textAlign: "center", color: C.muted }}>Aucun faux positif détecté 🎉</td></tr>}
+                  {byType.filter(t => t.fp > 0).length === 0 && <tr><td colSpan={5} style={{ padding: "32px", textAlign: "center", color: C.muted }}>Aucun faux positif détecté</td></tr>}
                 </tbody>
               </table>
             </div>

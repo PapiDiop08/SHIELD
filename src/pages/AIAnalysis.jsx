@@ -1,5 +1,5 @@
 // ── SHIELD — IA Analyse — Appel réel API Anthropic ───────────────────────
-// L'IA reçoit les vraies données Supabase en contexte et analyse
+// L'IA reçoit les données réelles en contexte et analyse
 
 import { useState } from "react";
 import { C } from "../theme.js";
@@ -7,14 +7,14 @@ import { Card, Badge, Btn, SectionHeader } from "../components.jsx";
 import { useAuth } from "../AuthContext.jsx";
 
 const ANALYSIS_MODULES = [
-  { id:"global",    icon:"🌐", label:"Analyse globale",       desc:"Analyse complète — alertes, blocages, règles, listes, antennes, Mobile Money combinés",         cost:1000, premium:true },
-  { id:"alerts",    icon:"🔔", label:"Analyse des alertes",   desc:"Corrélations, foyers actifs, progression temporelle, patterns par type de fraude",               cost:300  },
-  { id:"blockings", icon:"🛑", label:"Analyse des blocages",  desc:"Récidivistes, contournements IMEI, efficacité des blocages, taux de déblocage",                 cost:200  },
-  { id:"cells",     icon:"📡", label:"Analyse Cell IDs",      desc:"Antennes à risque, clusters SIM Box, distance anormale, foyers actifs géolocalisés",             cost:300  },
-  { id:"blacklist", icon:"🚫", label:"Analyse Blacklist",     desc:"Doublons, entrées obsolètes, préfixes IMEI suspects, cohérence avec blocages actifs",            cost:150  },
-  { id:"whitelist", icon:"✅", label:"Analyse Whitelist",     desc:"Entrées à risque, anomalies comportementales sur numéros en whitelist",                          cost:150  },
-  { id:"mm",        icon:"💸", label:"Analyse Mobile Money",  desc:"Dépassements récurrents, comptes mules, ATO patterns, corrélation SIM Swap + MM",               cost:400  },
-  { id:"rules",     icon:"⚙️", label:"Analyse des règles",    desc:"Règles inefficaces, faux positifs élevés, règles manquantes, chevauchements et conflits",        cost:200  },
+  { id:"global",    icon:"GLOB", label:"Analyse globale",       desc:"Analyse complète — alertes, blocages, règles, listes, antennes, Mobile Money combinés",         cost:1000, premium:true },
+  { id:"alerts",    icon:"ALT", label:"Analyse des alertes",   desc:"Corrélations, foyers actifs, progression temporelle, patterns par type de fraude",               cost:300  },
+  { id:"blockings", icon:"BLK", label:"Analyse des blocages",  desc:"Récidivistes, contournements IMEI, efficacité des blocages, taux de déblocage",                 cost:200  },
+  { id:"cells",     icon:"ANT", label:"Analyse Cell IDs",      desc:"Antennes à risque, clusters SIM Box, distance anormale, foyers actifs géolocalisés",             cost:300  },
+  { id:"blacklist", icon:"BL", label:"Analyse Blacklist",     desc:"Doublons, entrées obsolètes, préfixes IMEI suspects, cohérence avec blocages actifs",            cost:150  },
+  { id:"whitelist", icon:"OK", label:"Analyse Whitelist",     desc:"Entrées à risque, anomalies comportementales sur numéros en whitelist",                          cost:150  },
+  { id:"mm",        icon:"MM", label:"Analyse Mobile Money",  desc:"Dépassements récurrents, comptes mules, ATO patterns, corrélation SIM Swap + MM",               cost:400  },
+  { id:"rules",     icon:"RGL", label:"Analyse des règles",    desc:"Règles inefficaces, faux positifs élevés, règles manquantes, chevauchements et conflits",        cost:200  },
 ];
 
 const riskColors = { critical: C.danger, high: C.warning, medium: C.sky, low: C.success };
@@ -84,7 +84,7 @@ Format exact :
   "findings": [
     {
       "sev": "critical|high|medium|low",
-      "icon": "🔴|🟠|🟡|🔵",
+      "icon": "R|O|Y|B",
       "title": "Titre court du problème",
       "desc": "Description détaillée avec données chiffrées si possible",
       "action": "Action concrète recommandée"
@@ -122,28 +122,28 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
     setSelectedModules(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   }
 
-  async function callAnthropicAPI(moduleId) {
+  async function callOllamaAPI(moduleId) {
     const prompt = buildPrompt(moduleId, { alerts, rules, blockings, blacklist, cases, operators });
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/ollama/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
-        messages: [{ role: "user", content: prompt }]
+        model: "qwen2.5:0.5b",
+        prompt: prompt,
+        stream: false,
+        format: "json",
+        options: { temperature: 0.1, num_predict: 1500 }
       })
     });
 
     if (!response.ok) {
       const err = await response.text();
-      throw new Error(`API ${response.status}: ${err.slice(0, 200)}`);
+      throw new Error(`Ollama ${response.status}: ${err.slice(0, 200)}`);
     }
 
     const data = await response.json();
-    const text = data.content?.map(i => i.text || "").join("") || "";
-
-    // Parser le JSON — retirer éventuels backticks
+    const text = data.response || "";
     const clean = text.replace(/```json|```/g, "").trim();
     return JSON.parse(clean);
   }
@@ -162,7 +162,7 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
     for (const moduleId of selectedModules) {
       setLoadingModule(moduleId);
       try {
-        const result = await callAnthropicAPI(moduleId);
+        const result = await callOllamaAPI(moduleId);
         newResults[moduleId] = result;
       } catch (err) {
         console.error(`Erreur module ${moduleId}:`, err);
@@ -170,7 +170,7 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
           riskLevel: "medium",
           confidence: 0,
           summary: `Erreur lors de l'analyse : ${err.message}`,
-          findings: [{ sev:"medium", icon:"⚠️", title:"Erreur IA", desc:err.message, action:"Vérifier la connexion et réessayer." }],
+          findings: [{ sev:"medium", icon:"!", title:"Erreur IA", desc:err.message, action:"Vérifier la connexion et réessayer." }],
           recommendations: ["Réessayer l'analyse"],
           stats: { analyzed: 0, riskSIMs: 0, riskIMEI: 0, riskCells: 0 }
         };
@@ -192,18 +192,18 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
   return (
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader title="IA Analyse — Diagnostic opérationnel"
-        sub="Super Admin & GFM Analyste uniquement · Analyse en temps réel de vos données Supabase via IA" />
+        sub="Super Admin & AAR Analyste uniquement · IA 100% locale — Llama 3 · Zéro donnée externe" />
 
       {/* Banner */}
       <div style={{ background: C.navyL, border: `1px solid ${C.navyB}`, borderRadius: 10,
         padding: "12px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ fontSize: 22 }}>🧠</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.purple }}>IA</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 3 }}>
             Intelligence Artificielle — Analyse temps réel
           </div>
           <div style={{ fontSize: 12, color: C.muted }}>
-            L'IA analyse vos vraies données Supabase : {activeAlerts.length} alertes actives,{" "}
+            L'IA analyse vos données réelles : {activeAlerts.length} alertes actives,{" "}
             {(blockings||[]).filter(b=>b.active).length} blocages, {(rules||[]).filter(r=>r.active).length} règles.
             Résultats opérationnels basés sur votre contexte réel.
           </div>
@@ -257,7 +257,7 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
                       background:isSelected?C.sky:C.bg, border:`2px solid ${isSelected?C.sky:C.mutedL}`,
                       display:"flex", alignItems:"center", justifyContent:"center",
                       fontSize:13, color:isSelected?C.white:C.muted }}>
-                      {isSelected ? "✓" : ""}
+                      {isSelected ? "v" : ""}
                     </div>
                   </div>
                   <div style={{ fontSize:11, color:isSelected?C.muted:"#6b7280", lineHeight:1.5 }}>{m.desc}</div>
@@ -278,13 +278,13 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
               <div style={{ flex:1 }} />
               <Btn variant="ghost" onClick={() => setSelectedModules([])}>Tout déselectionner</Btn>
               <Btn onClick={() => setShowCostModal(true)} style={{ fontSize:14, padding:"11px 24px" }}>
-                🚀 Lancer l'analyse
+                Lancer l'analyse
               </Btn>
             </div>
           ) : (
             <div style={{ textAlign:"center", padding:"24px", color:C.muted,
               background:C.white, borderRadius:12, border:`1px solid ${C.mutedL}` }}>
-              <div style={{ fontSize:28, marginBottom:8 }}>☝️</div>
+              <div style={{ fontSize:11, color: C.muted, marginBottom:8 }}>Sélectionner un module</div>
               <p style={{ margin:0 }}>Sélectionnez au moins un module pour lancer l'analyse</p>
             </div>
           )}
@@ -294,7 +294,7 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
       {/* Loading */}
       {status === "loading" && (
         <Card style={{ padding:"48px", textAlign:"center" }}>
-          <div style={{ fontSize:48, marginBottom:20 }}>⏳</div>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>Analyse en cours…</div>
           <div style={{ fontSize:16, fontWeight:700, color:C.navy, marginBottom:16 }}>
             Analyse en cours...
           </div>
@@ -310,7 +310,7 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
                     background: isDone ? C.success : isActive ? C.sky : C.mutedL,
                     flexShrink:0, transition:"background 0.3s" }} />
                   <span style={{ fontSize:13, color: isDone ? C.success : C.textL }}>
-                    {m?.icon} {m?.label}{isDone ? " ✓" : isActive ? "..." : ""}
+                    {m?.icon} {m?.label}{isDone ? " v" : isActive ? "..." : ""}
                   </span>
                 </div>
               );
@@ -394,7 +394,7 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
                         <div style={{ background:(riskColors[f.sev]||C.muted)+"18",
                           border:`1px solid ${(riskColors[f.sev]||C.muted)}33`,
                           borderRadius:7, padding:"7px 12px" }}>
-                          <span style={{ fontSize:11, fontWeight:700, color:riskColors[f.sev]||C.muted }}>💡 </span>
+                          
                           <span style={{ fontSize:12, color:C.text }}>{f.action}</span>
                         </div>
                       </div>
@@ -456,15 +456,14 @@ export default function AIAnalysis({ alerts = [], rules = [], blockings = [], bl
               </div>
             </div>
             <p style={{ margin:"0 0 18px", fontSize:13, color:C.muted }}>
-              L'IA analysera vos vraies données Supabase : {activeAlerts.length} alertes,{" "}
-              {(rules||[]).filter(r=>r.active).length} règles, {(blockings||[]).filter(b=>b.active).length} blocages.
+              IA locale Llama 3 — {activeAlerts.length} alertes, {(rules||[]).filter(r=>r.active).length} règles analysées. Zéro donnée externe.
             </p>
             <div style={{ display:"flex", gap:8 }}>
               <Btn variant="ghost" onClick={() => setShowCostModal(false)} style={{ flex:1, justifyContent:"center" }}>
                 Annuler
               </Btn>
               <Btn onClick={runAnalysis} style={{ flex:2, justifyContent:"center" }}>
-                🚀 Confirmer et lancer
+                Confirmer et lancer
               </Btn>
             </div>
           </div>

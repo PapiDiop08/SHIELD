@@ -1,5 +1,5 @@
 // ── SHIELD Rules Page — FULL LINK ────────────────────────────────────────────
-// UDF_FIELDS remplacé par hook Supabase — tout le reste identique
+// UDF_FIELDS remplacé par hook AAR DB — tout le reste identique
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { C, sevColor, sevLabel, fraudCatIcon, fraudCatColor, FRAUD_CATEGORIES, ALL_FRAUD_TYPES, ACTIONS, ACTION_LABELS, COMPARATORS } from "../theme.js";
@@ -7,7 +7,7 @@ import { Card, Badge, Btn, SearchInput, Select, SectionHeader } from "../compone
 import { useAuth } from "../AuthContext.jsx";
 import { supabase } from "../supabase.js";
 
-// ── Hook : udf_fields depuis Supabase ────────────────────────────────────
+// ── Hook : udf_fields depuis AAR DB ────────────────────────────────────
 function useUDFFields() {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,7 @@ function useUDFFields() {
   return { fields, loading };
 }
 
-// ── FieldSelector — dropdown champs CDR depuis Supabase ──────────────────
+// ── FieldSelector — dropdown champs CDR depuis AAR DB ──────────────────
 function FieldSelector({ value, onChange, udfFields }) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -109,7 +109,7 @@ function FraudTypeDropdown({ value, onChange, rules }) {
   return (
     <div ref={ref} style={{ position: "relative", marginBottom: 16 }}>
       <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 10, background: value ? fraudCatColor(value) + "18" : C.white, border: `1px solid ${value ? fraudCatColor(value) : C.mutedL}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: value ? 700 : 400, color: value ? fraudCatColor(value) : C.textL }}>
-        <span>🔍 {value ? `${fraudCatIcon(value)} ${value}` : `Tous les types${rules ? ` (${rules.length})` : ""}`}</span>
+        <span>Rch {value ? `${fraudCatIcon(value)} ${value}` : `Tous les types${rules ? ` (${rules.length})` : ""}`}</span>
         {value && <span onClick={e => { e.stopPropagation(); onChange(null); }} style={{ marginLeft: 4, color: C.muted, fontSize: 14 }}>×</span>}
         <span style={{ marginLeft: "auto", color: C.muted }}>▾</span>
       </button>
@@ -144,15 +144,15 @@ function FraudTypeDropdown({ value, onChange, rules }) {
 
 function ListDropdown({ value, onChange }) {
   const LISTS = [
-    { key: "blacklist_msisdn", label: "🚫 Blacklist — MSISDN" },
-    { key: "whitelist_msisdn", label: "✅ Whitelist — MSISDN" },
-    { key: "watchlist_msisdn", label: "👁 Watchlist — MSISDN" },
-    { key: "blacklist_imei", label: "🚫 Blacklist — IMEI/Préfixes" },
-    { key: "blacklist_cell", label: "🚫 Blacklist — Cell ID" },
-    { key: "blacklist_country", label: "🚫 Blacklist — Pays" },
-    { key: "risk_countries", label: "🌍 Pays à risque (prédéfini)" },
-    { key: "premium_prefixes", label: "💰 Préfixes surtaxés" },
-    { key: "known_simbox_imei", label: "📱 IMEI SIM Box connus" },
+    { key: "blacklist_msisdn", label: "[X] Blacklist — MSISDN" },
+    { key: "whitelist_msisdn", label: "OK Whitelist — MSISDN" },
+    { key: "watchlist_msisdn", label: "WATCH Watchlist — MSISDN" },
+    { key: "blacklist_imei", label: "[X] Blacklist — IMEI/Préfixes" },
+    { key: "blacklist_cell", label: "[X] Blacklist — Cell ID" },
+    { key: "blacklist_country", label: "[X] Blacklist — Pays" },
+    { key: "risk_countries", label: "Pays à risque (prédéfini)" },
+    { key: "premium_prefixes", label: "FIN Préfixes surtaxés" },
+    { key: "known_simbox_imei", label: "MOB IMEI SIM Box connus" },
   ];
   return (
     <select value={value || ""} onChange={e => onChange(e.target.value)}
@@ -223,7 +223,7 @@ function RuleForm({ initial, onSave, onCancel, cases, udfFields }) {
         </div>
         {form.conditions.length === 0 && (
           <div style={{ textAlign: "center", padding: "20px", color: C.muted, border: `2px dashed ${C.mutedL}`, borderRadius: 10, fontSize: 13 }}>
-            Ajoutez des conditions — {udfFields.length} champs CDR disponibles (Supabase)
+            Ajoutez des conditions — {udfFields.length} champs CDR disponibles 
           </div>
         )}
         {form.conditions.map((cond, i) => (
@@ -249,7 +249,7 @@ function RuleForm({ initial, onSave, onCancel, cases, udfFields }) {
                 : <input value={cond.value} onChange={e => updCond(i, "value", e.target.value)} placeholder="Valeur..."
                     style={{ flex: 1, border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "8px 10px", fontSize: 12, color: C.navy, outline: "none" }} />
               }
-              <button onClick={() => delCond(i)} style={{ background: C.dangerL, border: "none", color: C.danger, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 14 }}>🗑</button>
+              <button onClick={() => delCond(i)} style={{ background: C.dangerL, border: "none", color: C.danger, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 14 }}>Del</button>
             </div>
             {cond.field && (
               <div style={{ marginTop: 6, fontSize: 10, color: C.muted }}>
@@ -262,7 +262,7 @@ function RuleForm({ initial, onSave, onCancel, cases, udfFields }) {
       <div style={{ display: "flex", gap: 8 }}>
         <Btn variant="ghost" onClick={onCancel} style={{ flex: 1, justifyContent: "center" }}>Annuler</Btn>
         <Btn onClick={() => onSave(form)} disabled={!form.name} style={{ flex: 2, justifyContent: "center" }}>
-          🚀 {initial ? "Sauvegarder" : "Déployer la règle"}
+          {initial ? "Sauvegarder" : "Déployer la règle"}
         </Btn>
       </div>
     </div>
@@ -333,7 +333,7 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
         <div style={{ flex: 1 }}>
           <Card style={{ padding: "18px 20px" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
-              Champs disponibles {udfLoading ? "(chargement…)" : `— Supabase`}
+              Champs disponibles {udfLoading ? "(chargement…)" : ``}
             </div>
             {Object.entries(udfFields.reduce((acc, f) => { if (!acc[f.cat]) acc[f.cat] = 0; acc[f.cat]++; return acc; }, {})).map(([cat, count]) => (
               <div key={cat} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.mutedL}` }}>
@@ -357,8 +357,8 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
         <Btn variant="ghost" onClick={() => setEditRule(null)}>← Retour</Btn>
         <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.navy, flex: 1 }}>Modifier — {editRule.name}</h1>
         <div style={{ display: "flex", gap: 12, fontSize: 13, color: C.textL }}>
-          <span>🎯 {editRule.triggered} déclenchements</span>
-          <span>🚫 {editRule.blocked} bloqués</span>
+          <span>[*] {editRule.triggered} déclenchements</span>
+          <span>[X] {editRule.blocked} bloqués</span>
         </div>
       </div>
       <Card style={{ padding: "24px" }}>
@@ -372,7 +372,7 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
     <div style={{ padding: "28px 30px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
         title="Règles de détection"
-        sub={`${(rules||[]).filter(r => r.active).length} actives · ${rules.length} total · ${udfLoading ? "…" : udfFields.length} champs CDR (Supabase)`}
+        sub={`${(rules||[]).filter(r => r.active).length} actives · ${rules.length} total · ${udfLoading ? "…" : udfFields.length} champs CDR `}
         action={can("createRules") && <Btn onClick={() => setShowBuilder(true)}>+ Créer une règle</Btn>}
       />
 
@@ -421,7 +421,7 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
                   <Badge label={sevLabel(rule.severity)} color={sc} small />
                   <Badge label={rule.type} color={fc} small />
                   <Badge label={ACTION_LABELS[rule.action]?.replace(/^[^ ]+ /, "") || rule.action} color={rule.action.includes("block") ? C.danger : C.warning} small />
-                  {linkedCase && <Badge label={`📁 ${linkedCase.name.slice(0, 20)}`} color={C.purple} small />}
+                  {linkedCase && <Badge label={`Doc ${linkedCase.name.slice(0, 20)}`} color={C.purple} small />}
                 </div>
                 <div style={{ fontSize: 11, color: C.textL }}>{rule.conditions?.length || 0} conditions · {rule.date}</div>
               </div>
@@ -443,7 +443,7 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
         })}
         {filtered.length === 0 && (
           <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>⚙</div>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>CFG</div>
             <p style={{ margin: 0 }}>Aucune règle ne correspond</p>
           </Card>
         )}

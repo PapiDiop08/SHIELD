@@ -41,7 +41,7 @@ export default function UserProfile({ onBack }) {
             {currentUser?.operator && <div style={{ fontSize:11,color:C.muted,marginTop:8 }}>{currentUser.operator}</div>}
           </Card>
           <Card style={{ overflow:"hidden" }}>
-            {[{ k:"info",l:"Informations",i:"👤" },{ k:"password",l:"Mot de passe",i:"🔑" },{ k:"activity",l:"Mon activité",i:"📋" }].map(t => (
+            {[{ k:"info",l:"Informations",i:"USR" },{ k:"password",l:"Mot de passe",i:"KEY" },{ k:"activity",l:"Mon activité",i:"LOG" }].map(t => (
               <button key={t.k} onClick={() => setTab(t.k)} style={{ display:"flex",alignItems:"center",gap:10,width:"100%",background:tab===t.k?C.navyL:"none",border:"none",padding:"11px 16px",cursor:"pointer",color:tab===t.k?C.white:C.textL,fontWeight:tab===t.k?700:400,fontSize:13,textAlign:"left",borderBottom:`1px solid ${C.mutedL}` }}>
                 <span>{t.i}</span>{t.l}
               </button>
@@ -83,14 +83,14 @@ export default function UserProfile({ onBack }) {
                 ))}
                 {pwdMsg && (
                   <div style={{ background:pwdMsg.error?C.dangerL:C.successL,border:`1px solid ${pwdMsg.error?C.danger:C.success}44`,borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13,color:pwdMsg.error?C.danger:C.success,fontWeight:600 }}>
-                    {pwdMsg.error?"⚠":"✓"} {pwdMsg.text}
+                    {pwdMsg.error?"!":"v"} {pwdMsg.text}
                   </div>
                 )}
                 <div style={{ padding:"12px 14px",background:C.bg,borderRadius:8,marginBottom:18 }}>
                   <div style={{ fontSize:12,fontWeight:600,color:C.navy,marginBottom:6 }}>Le mot de passe doit :</div>
                   {["Contenir au moins 8 caractères","Contenir au moins une majuscule","Contenir au moins un chiffre"].map(r => <div key={r} style={{ fontSize:11,color:C.textL,marginBottom:3 }}>• {r}</div>)}
                 </div>
-                <Btn type="submit" style={{ width:"100%",justifyContent:"center" }}>🔑 Modifier le mot de passe</Btn>
+                <Btn type="submit" style={{ width:"100%",justifyContent:"center" }}>Modifier le mot de passe</Btn>
               </form>
             </Card>
           )}

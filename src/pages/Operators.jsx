@@ -5,21 +5,21 @@ import { useAuth } from "../AuthContext.jsx";
 
 // ── Onboarding steps ───────────────────────────────────────────────────────
 const STEPS = [
-  { id:"info",      label:"Infos", icon:"🏢" },
-  { id:"contacts",  label:"Contacts", icon:"👤" },
-  { id:"packs",     label:"Packs & IA", icon:"📦" },
-  { id:"fraud",     label:"Types fraude", icon:"🎯" },
-  { id:"udf",       label:"Champs CDR", icon:"🗂" },
-  { id:"pricing",   label:"Tarification", icon:"💰" },
-  { id:"review",    label:"Récapitulatif", icon:"✅" },
+  { id:"info",      label:"Infos", icon:"OP" },
+  { id:"contacts",  label:"Contacts", icon:"USR" },
+  { id:"packs",     label:"Packs & IA", icon:"Pack" },
+  { id:"fraud",     label:"Types fraude", icon:"FR" },
+  { id:"udf",       label:"Champs CDR", icon:"CDR" },
+  { id:"pricing",   label:"Tarification", icon:"$" },
+  { id:"review",    label:"Récapitulatif", icon:"OK" },
 ];
 
 const PACK_OPTIONS = [
-  { id:"mm",      label:"Mobile Money",     desc:"Détection fraude MM, ATO, dépassements comportementaux", icon:"💸", price:50000 },
-  { id:"ai",      label:"IA Analyse",       desc:"Accès aux analyses IA standard par module", icon:"🧠", price:100000 },
-  { id:"deepai",  label:"IA Approfondie",   desc:"Analyse globale complète, rapports exécutifs, corrélations avancées", icon:"🔬", price:200000 },
-  { id:"interop", label:"Inter-opérateur",  desc:"Partage de détections avec d'autres opérateurs partenaires", icon:"🔄", price:30000 },
-  { id:"api",     label:"API Blocage",      desc:"Intégration directe pour blocage en temps réel", icon:"⚡", price:80000 },
+  { id:"mm",      label:"Mobile Money",     desc:"Détection fraude MM, ATO, dépassements comportementaux", icon:"MM", price:50000 },
+  { id:"ai",      label:"IA Analyse",       desc:"Accès aux analyses IA standard par module", icon:"IA", price:100000 },
+  { id:"deepai",  label:"IA Approfondie",   desc:"Analyse globale complète, rapports exécutifs, corrélations avancées", icon:"IA+", price:200000 },
+  { id:"interop", label:"Inter-opérateur",  desc:"Partage de détections avec d'autres opérateurs partenaires", icon:"Sync", price:30000 },
+  { id:"api",     label:"API Blocage",      desc:"Intégration directe pour blocage en temps réel", icon:"API", price:80000 },
 ];
 
 const CDR_TYPES = ["Voice CDR","SMS CDR","Data CDR","Mobile Money CDR","Roaming CDR"];
@@ -60,7 +60,7 @@ function StepBar({ steps, current, onGo }) {
           <div key={s.id} style={{display:"flex",alignItems:"center",flexShrink:0}}>
             <div onClick={()=>done&&onGo(s.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:done?"pointer":"default"}}>
               <div style={{width:36,height:36,borderRadius:"50%",background:done?C.success:active?C.navy:C.mutedL,display:"flex",alignItems:"center",justifyContent:"center",fontSize:done?16:14,fontWeight:700,color:done?C.white:active?C.white:C.muted,border:`2px solid ${done?C.success:active?C.navy:C.mutedL}`}}>
-                {done?"✓":s.icon}
+                {done?"v":s.icon}
               </div>
               <div style={{fontSize:10,fontWeight:active||done?700:400,color:active?C.navy:done?C.success:C.muted,whiteSpace:"nowrap"}}>{s.label}</div>
             </div>
@@ -156,10 +156,10 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                   <span style={{fontWeight:900,fontSize:15,color:C.navy}}>{op.name}</span>
                   <Badge label={op.code||"—"} color={C.navyB} small/>
                   <Badge label={op.active?"Actif":"Inactif"} color={op.active?C.success:C.muted} small/>
-                  {op.packs?.mm&&<Badge label="💸 MM" color={C.teal} small/>}
-                  {op.packs?.ai&&<Badge label="🧠 IA" color={C.purple} small/>}
-                  {op.packs?.deepai&&<Badge label="🔬 IA+" color={C.red} small/>}
-                  {op.packs?.api&&<Badge label="⚡ API" color={C.sky} small/>}
+                  {op.packs?.mm&&<Badge label="MM MM" color={C.teal} small/>}
+                  {op.packs?.ai&&<Badge label="IA" color={C.purple} small/>}
+                  {op.packs?.deepai&&<Badge label="IA+ IA+" color={C.red} small/>}
+                  {op.packs?.api&&<Badge label="API API" color={C.sky} small/>}
                   {op.slaEnabled&&<Badge label="⏱ SLA" color={C.warning} small/>}
                 </div>
                 <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:10}}>
@@ -168,13 +168,13 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                   ))}
                 </div>
                 <div style={{display:"flex",gap:16,fontSize:12,color:C.muted,flexWrap:"wrap"}}>
-                  <span>📧 {op.contact||op.contacts?.[0]?.email||"—"}</span>
-                  <span>📅 {op.contractStart}</span>
-                  <span>💰 {((op.monthlyFee||0)+totalPackCost).toLocaleString()} XOF/mois</span>
+                  <span>Email {op.contact||op.contacts?.[0]?.email||"—"}</span>
+                  <span>Date {op.contractStart}</span>
+                  <span>[ {((op.monthlyFee||0)+totalPackCost).toLocaleString()} XOF/mois</span>
                 </div>
               </div>
               <div style={{display:"flex",gap:8,flexDirection:"column",flexShrink:0}}>
-                <Btn variant="secondary" small onClick={()=>startEdit(op)}>✏ Modifier</Btn>
+                <Btn variant="secondary" small onClick={()=>startEdit(op)}>Edit Modifier</Btn>
                 <Btn variant={op.active?"warning":"success"} small onClick={()=>{ setOperators(p=>p.map(o=>o.id===op.id?{...o,active:!o.active}:o)); addLog?.("TOGGLE_OPERATOR","operator",op.id,`${op.name} ${op.active?"désactivé":"activé"}`,"Opérateurs"); showToast(`${op.name} ${op.active?"désactivé":"activé"}`); }}>
                   {op.active?"Désactiver":"Activer"}
                 </Btn>
@@ -214,11 +214,11 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {/* ── STEP: INFO ── */}
             {step==="info"&&(
               <div>
-                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:18}}>🏢 Informations générales</div>
+                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:18}}>Informations générales</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                   <div style={{gridColumn:"span 2"}}>
                     <label style={{display:"block",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:5}}>Nom de l'opérateur *</label>
-                    <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Ex: Orange Sénégal"
+                    <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Ex: Partner 1"
                       style={{width:"100%",border:`2px solid ${C.sky}`,borderRadius:8,padding:"10px 14px",fontSize:15,fontWeight:700,color:C.navy,outline:"none",boxSizing:"border-box"}}/>
                   </div>
                   {[["Code opérateur","code","Ex: OG",true],["Pays","country","SN",true],["Fuseau horaire","timezone","Africa/Dakar",true],["Langue","language","fr",true],["Site web","website","https://...",false]].map(([l,k,p,half])=>(
@@ -241,7 +241,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {step==="contacts"&&(
               <div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-                  <div style={{fontSize:15,fontWeight:700,color:C.navy}}>👤 Contacts & Utilisateurs</div>
+                  <div style={{fontSize:15,fontWeight:700,color:C.navy}}>USR Contacts & Utilisateurs</div>
                   <Btn variant="secondary" small onClick={addContact}>+ Ajouter un contact</Btn>
                 </div>
                 <div style={{background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:C.navy}}>
@@ -256,7 +256,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                       </div>
                       <div style={{display:"flex",gap:6}}>
                         {!c.isPrimary&&<button onClick={()=>setPrimary(i)} style={{background:C.skyL,border:`1px solid ${C.sky}44`,color:C.sky,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:11,fontWeight:700}}>Définir principal</button>}
-                        {form.contacts.length>1&&<button onClick={()=>removeContact(i)} style={{background:C.dangerL,border:"none",color:C.danger,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:13}}>🗑</button>}
+                        {form.contacts.length>1&&<button onClick={()=>removeContact(i)} style={{background:C.dangerL,border:"none",color:C.danger,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:13}}>Del</button>}
                       </div>
                     </div>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -283,7 +283,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {/* ── STEP: PACKS ── */}
             {step==="packs"&&(
               <div>
-                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>📦 Packs & fonctionnalités</div>
+                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>Pack Packs & fonctionnalités</div>
                 <p style={{margin:"0 0 18px",fontSize:12,color:C.textL}}>Sélectionnez les modules auxquels cet opérateur aura accès. Chaque pack est facturé en supplément du forfait mensuel de base.</p>
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {PACK_OPTIONS.map(p=>{
@@ -299,7 +299,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                         <div style={{textAlign:"right",flexShrink:0}}>
                           <div style={{fontSize:14,fontWeight:700,color:isOn?C.sky:C.muted}}>{p.price.toLocaleString()} XOF/mois</div>
                           <div style={{width:28,height:28,borderRadius:8,background:isOn?C.sky:C.white,border:`2px solid ${isOn?C.sky:C.mutedL}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:isOn?C.white:C.muted,marginLeft:"auto",marginTop:4}}>
-                            {isOn?"✓":""}
+                            {isOn?"v":""}
                           </div>
                         </div>
                       </div>
@@ -312,7 +312,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {/* ── STEP: FRAUD TYPES ── */}
             {step==="fraud"&&(
               <div>
-                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>🎯 Types de fraude activés</div>
+                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>Types de fraude activés</div>
                 <p style={{margin:"0 0 18px",fontSize:12,color:C.textL}}>Choisissez les types de fraude pertinents pour cet opérateur. Seuls ces types apparaîtront dans les règles et alertes.</p>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
                   <span style={{fontSize:12,color:C.textL}}>{form.fraudTypes.length} type{form.fraudTypes.length>1?"s":""} sélectionné{form.fraudTypes.length>1?"s":""}</span>
@@ -330,7 +330,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                         return (
                           <button key={t} onClick={()=>toggleFraudType(t)}
                             style={{padding:"5px 12px",background:on?`${def.color}18`:C.bg,border:`1px solid ${on?def.color:C.mutedL}`,borderRadius:20,color:on?def.color:C.textL,fontSize:11,fontWeight:on?700:400,cursor:"pointer"}}>
-                            {on?"✓ ":""}{t}
+                            {on?"v ":""}{t}
                           </button>
                         );
                       })}
@@ -343,7 +343,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {/* ── STEP: UDF / CDR ── */}
             {step==="udf"&&(
               <div>
-                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>🗂 Configuration CDR</div>
+                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>Configuration CDR</div>
                 <p style={{margin:"0 0 18px",fontSize:12,color:C.textL}}>Configurez comment l'opérateur va nous envoyer ses données CDR. Ces paramètres seront utilisés par l'ETL pour ingérer les fichiers.</p>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                   <div style={{gridColumn:"span 2"}}>
@@ -354,7 +354,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                         return (
                           <button key={t} onClick={()=>setForm(f=>({...f,cdrTypes:on?f.cdrTypes.filter(x=>x!==t):[...(f.cdrTypes||[]),t]}))}
                             style={{padding:"6px 14px",background:on?`${C.sky}18`:C.bg,border:`1px solid ${on?C.sky:C.mutedL}`,borderRadius:20,color:on?C.sky:C.textL,fontSize:12,fontWeight:on?700:400,cursor:"pointer"}}>
-                            {on?"✓ ":""}{t}
+                            {on?"v ":""}{t}
                           </button>
                         );
                       })}
@@ -388,7 +388,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {/* ── STEP: PRICING ── */}
             {step==="pricing"&&(
               <div>
-                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>💰 Tarification</div>
+                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:6}}>Tarification</div>
                 <p style={{margin:"0 0 18px",fontSize:12,color:C.textL}}>Définissez la structure tarifaire pour cet opérateur. Le total mensuel sera calculé automatiquement dans la page Facturation.</p>
 
                 <div style={{background:C.bg,borderRadius:10,padding:"16px",marginBottom:20}}>
@@ -415,7 +415,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                   </div>
                   {form.slaEnabled&&(
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-                      {[["Critique 🔴","critical",C.danger],["Élevé 🟠","high",C.warning],["Moyen 🔵","medium",C.sky]].map(([l,k,color])=>(
+                      {[["Critique","critical",C.danger],["Élevé","high",C.warning],["Moyen","medium",C.sky]].map(([l,k,color])=>(
                         <div key={k} style={{background:C.bg,borderRadius:8,padding:"12px 14px",border:`1px solid ${color}22`}}>
                           <label style={{display:"block",fontSize:10,fontWeight:700,color,marginBottom:8}}>{l}</label>
                           <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -443,13 +443,13 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {/* ── STEP: REVIEW ── */}
             {step==="review"&&(
               <div>
-                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:18}}>✅ Récapitulatif — {form.name}</div>
+                <div style={{fontSize:15,fontWeight:700,color:C.navy,marginBottom:18}}>OK Récapitulatif — {form.name}</div>
 
                 {[
-                  { title:"Informations", icon:"🏢", items:[["Nom",form.name],["Code",form.code],["Pays",form.country],["Timezone",form.timezone]] },
-                  { title:"Contacts", icon:"👤", items:form.contacts.map(c=>[`${c.isPrimary?"⭐ ":""}${c.name||"—"}`,`${c.email} · ${ROLES[c.role]?.label||c.role}`]) },
-                  { title:"CDR", icon:"🗂", items:[["Types",form.cdrTypes?.join(", ")||"—"],["Livraison",form.cdrDelivery],["Fréquence",form.cdrFrequency],["Format",`${form.cdrFormat} · sep:${form.cdrSeparator}`]] },
-                  { title:"Tarification", icon:"💰", items:[["Forfait",`${(form.monthlyFee||0).toLocaleString()} XOF/mois`],["Par alerte",`${form.perAlertFee} XOF`],["Par blocage",`${form.perBlockFee} XOF`],["SLA",form.slaEnabled?"Activé":"Désactivé"]] },
+                  { title:"Informations", icon:"OP", items:[["Nom",form.name],["Code",form.code],["Pays",form.country],["Timezone",form.timezone]] },
+                  { title:"Contacts", icon:"USR", items:form.contacts.map(c=>[`${c.isPrimary?"⭐ ":""}${c.name||"—"}`,`${c.email} · ${ROLES[c.role]?.label||c.role}`]) },
+                  { title:"CDR", icon:"CDR", items:[["Types",form.cdrTypes?.join(", ")||"—"],["Livraison",form.cdrDelivery],["Fréquence",form.cdrFrequency],["Format",`${form.cdrFormat} · sep:${form.cdrSeparator}`]] },
+                  { title:"Tarification", icon:"$", items:[["Forfait",`${(form.monthlyFee||0).toLocaleString()} XOF/mois`],["Par alerte",`${form.perAlertFee} XOF`],["Par blocage",`${form.perBlockFee} XOF`],["SLA",form.slaEnabled?"Activé":"Désactivé"]] },
                 ].map(sec=>(
                   <div key={sec.title} style={{background:C.bg,borderRadius:10,padding:"14px 16px",marginBottom:12}}>
                     <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:10}}>{sec.icon} {sec.title}</div>
@@ -463,7 +463,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                 ))}
 
                 <div style={{background:C.bg,borderRadius:10,padding:"14px 16px",marginBottom:12}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:10}}>📦 Packs activés</div>
+                  <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:10}}>Pack Packs activés</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                     {Object.entries(form.packs||{}).filter(([,v])=>v).map(([k])=>{ const p=PACK_OPTIONS.find(x=>x.id===k); return p?<Badge key={k} label={`${p.icon} ${p.label}`} color={C.purple}/>:null; })}
                     {!Object.values(form.packs||{}).some(Boolean)&&<span style={{fontSize:12,color:C.muted}}>Aucun pack activé</span>}
@@ -471,7 +471,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                 </div>
 
                 <div style={{background:C.bg,borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:10}}>🎯 Types de fraude ({form.fraudTypes?.length||0})</div>
+                  <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:10}}>{form.fraudTypes?.length||0})</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                     {(form.fraudTypes||[]).slice(0,10).map(t=><Badge key={t} label={t} color={C.sky} small/>)}
                     {(form.fraudTypes?.length||0)>10&&<Badge label={`+${form.fraudTypes.length-10} autres`} color={C.muted} small/>}
@@ -479,7 +479,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                 </div>
 
                 <div style={{background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:12,color:C.navy}}>
-                  📧 Un email d'invitation sera envoyé à <strong>{form.contacts[0]?.email||"—"}</strong> pour créer son compte Admin Opérateur.
+                  Email Un email d'invitation sera envoyé à <strong>{form.contacts[0]?.email||"—"}</strong> pour créer son compte Admin Opérateur.
                 </div>
               </div>
             )}
@@ -490,7 +490,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
               {isFirst&&<Btn variant="ghost" onClick={()=>setView("list")} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>}
               {!isLast&&<Btn onClick={next} disabled={!form.name} style={{flex:2,justifyContent:"center"}}>Suivant →</Btn>}
               {isLast&&<Btn onClick={saveOperator} style={{flex:2,justifyContent:"center",background:C.success,border:"none",color:C.white}}>
-                🚀 {editOp?"Sauvegarder":"Créer l'opérateur"}
+                {editOp?"Sauvegarder":"Créer l'opérateur"}
               </Btn>}
             </div>
           </Card>
@@ -503,10 +503,10 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {form.name&&<div style={{fontSize:14,fontWeight:900,color:C.navy,marginBottom:8}}>{form.name}</div>}
             {form.code&&<Badge label={form.code} color={C.navyB} small/>}
             <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:6}}>
-              <div style={{fontSize:11,color:C.textL}}>👤 {form.contacts?.filter(c=>c.email).length||0} contact{form.contacts?.filter(c=>c.email).length>1?"s":""}</div>
-              <div style={{fontSize:11,color:C.textL}}>📦 {Object.values(form.packs||{}).filter(Boolean).length} pack{Object.values(form.packs||{}).filter(Boolean).length>1?"s":""}</div>
-              <div style={{fontSize:11,color:C.textL}}>🎯 {form.fraudTypes?.length||0} types fraude</div>
-              <div style={{fontSize:11,color:C.textL}}>🗂 {form.cdrTypes?.join(", ")||"—"}</div>
+              <div style={{fontSize:11,color:C.textL}}>USR {form.contacts?.filter(c=>c.email).length||0} contact{form.contacts?.filter(c=>c.email).length>1?"s":""}</div>
+              <div style={{fontSize:11,color:C.textL}}>Pack {Object.values(form.packs||{}).filter(Boolean).length} pack{Object.values(form.packs||{}).filter(Boolean).length>1?"s":""}</div>
+              <div style={{fontSize:11,color:C.textL}}>Fraude: {form.fraudTypes?.length||0} types fraude</div>
+              <div style={{fontSize:11,color:C.textL}}>CDR: {form.cdrTypes?.join(", ")||"—"}</div>
             </div>
             <div style={{marginTop:14,paddingTop:12,borderTop:`1px solid ${C.mutedL}`}}>
               <div style={{fontSize:11,color:C.muted,marginBottom:4}}>Estimation mensuelle</div>
@@ -520,7 +520,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                 const done=i<idx; const active=s.id===step;
                 return (
                   <div key={s.id} onClick={()=>done&&setStep(s.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",cursor:done?"pointer":"default"}}>
-                    <div style={{width:18,height:18,borderRadius:"50%",background:done?C.success:active?C.navy:C.mutedL,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.white,flexShrink:0,fontWeight:700}}>{done?"✓":i+1}</div>
+                    <div style={{width:18,height:18,borderRadius:"50%",background:done?C.success:active?C.navy:C.mutedL,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:C.white,flexShrink:0,fontWeight:700}}>{done?"v":i+1}</div>
                     <span style={{fontSize:11,color:active?C.navy:done?C.success:C.muted,fontWeight:active||done?700:400}}>{s.label}</span>
                   </div>
                 );

@@ -1,5 +1,5 @@
 // ── SHIELD Cases Page — FULL LINK ────────────────────────────────────────────
-// Données depuis Supabase — plus de MOCK_CASES
+// Données depuis AAR DB — plus de MOCK_CASES
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { C, sevColor, fraudCatIcon, fraudCatColor, FRAUD_CATEGORIES, ALL_FRAUD_TYPES } from "../theme.js";
@@ -7,7 +7,7 @@ import { Card, Badge, Btn, SearchInput, Select, SectionHeader, Modal, Avatar } f
 import { useAuth } from "../AuthContext.jsx";
 import { supabase } from "../supabase.js";
 
-// ── Hook interne — Cases depuis Supabase ──────────────────────────────────
+// ── Hook interne — Cases depuis AAR DB ──────────────────────────────────
 function useCases(operatorIdFilter) {
   const [cases, setCasesState] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ function useCases(operatorIdFilter) {
     try {
       let q = supabase
         .from("cases")
-        .select("*, operators(name, code)")
+        .select("*")
         .order("created_at", { ascending: false });
       if (operatorIdFilter) q = q.eq("operator_id", operatorIdFilter);
       const { data, error } = await q;
@@ -32,12 +32,12 @@ function useCases(operatorIdFilter) {
         priority: c.priority,
         assignedTo: Array.isArray(c.assigned_to) ? c.assigned_to : [],
         createdBy: c.created_by,
-        creatorName: "GFM",
+        creatorName: "AAR",
         createdAt: c.created_at?.slice(0, 10),
         tags: Array.isArray(c.tags) ? c.tags : [],
         alertCount: c.alert_count || 0,
         slaHours: c.sla_hours || 24,
-        operator: c.operators?.name || "—",
+        operator: c.operator || c.operator_id || "—",
         operatorId: c.operator_id,
       })));
     } catch (err) {
@@ -103,6 +103,16 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
     name: "", description: "", type: ALL_FRAUD_TYPES[0], priority: "high", assignedTo: []
   });
   const [creating, setCreating] = useState(false);
+  const [caseLinkedAlerts, setCaseLinkedAlerts] = useState([]);
+
+  // Fetch alerts linked to selected case directly from Supabase
+  useEffect(() => {
+    if (!selectedCase) { setCaseLinkedAlerts([]); return; }
+    supabase.from("alerts").select("*")
+      .eq("case_id", selectedCase.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setCaseLinkedAlerts(data || []));
+  }, [selectedCase?.id]);
 
   const analysts = (users||[]).filter(u => u.active && ["analyst", "admin", "superadmin", "gfm_analyst"].includes(u.role));
 
@@ -146,15 +156,15 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
   const statusColors = { open: C.danger, in_progress: C.warning, investigating: C.warning, pending: C.sky, closed: C.success, escalated: C.danger };
   const statusLabels = { open: "Ouvert", in_progress: "En cours", investigating: "En cours", pending: "En attente", closed: "Fermé", escalated: "Escaladé" };
 
-  const caseAlerts = selectedCase ? (alerts||[]).filter(a => a.caseId === selectedCase.id) : [];
+  // caseLinkedAlerts is fetched directly from Supabase by useEffect above
 
   return (
     <div style={{ padding: "28px 30px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
         title="Case Management"
         sub={loading
-          ? "Chargement depuis Supabase…"
-          : `${(cases||[]).filter(c => c.status !== "closed").length} cases actifs · ${cases.length} total — Supabase`
+          ? "Chargement chargement…"
+          : `${(cases||[]).filter(c => c.status !== "closed").length} cases actifs · ${cases.length} total `
         }
         action={can("createCases") && (
           <Btn onClick={() => setShowCreate(true)}>+ Nouveau case</Btn>
@@ -206,8 +216,8 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
       {/* Loading state */}
       {loading && (
         <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
-          <p style={{ margin: 0 }}>Chargement des cases depuis Supabase…</p>
+          <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>Chargement…</div>
+          <p style={{ margin: 0 }}>Chargement des cases chargement…</p>
         </Card>
       )}
 
@@ -243,10 +253,10 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
                           {c.description}
                         </p>
                         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 11, color: C.muted }}>📅 {c.createdAt}</span>
-                          <span style={{ fontSize: 11, color: C.sky, fontWeight: 600 }}>🔔 {c.alertCount} alertes</span>
+                          <span style={{ fontSize: 11, color: C.muted }}>Date {c.createdAt}</span>
+                          <span style={{ fontSize: 11, color: C.sky, fontWeight: 600 }}>[ {c.alertCount} alertes</span>
                           <span style={{ fontSize: 11, color: C.muted }}>⏱ SLA {c.slaHours}h</span>
-                          {c.operator && <span style={{ fontSize: 11, color: C.muted }}>🏢 {c.operator}</span>}
+                          {c.operator && <span style={{ fontSize: 11, color: C.muted }}>Opérateur: {c.operator}</span>}
                           {(c.tags || []).map(t => (
                             <span key={t} style={{ background: C.mutedL, color: C.textL, borderRadius: 4, padding: "1px 6px", fontSize: 10 }}>
                               #{t}
@@ -279,7 +289,7 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
 
               {filtered.length === 0 && (
                 <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>Aucun case</div>
                   <p style={{ margin: 0 }}>Aucun case trouvé</p>
                 </Card>
               )}
@@ -292,16 +302,16 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
               <Card style={{ padding: "18px 20px", marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
-                    Alertes liées ({caseAlerts.length})
+                    Alertes liées ({caseLinkedAlerts.length})
                   </div>
                   <button onClick={() => setSelectedCase(null)}
                     style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>
-                    ✕
+                    X
                   </button>
                 </div>
-                {caseAlerts.length === 0
+                {caseLinkedAlerts.length === 0
                   ? <p style={{ margin: 0, color: C.muted, fontSize: 12 }}>Aucune alerte associée à ce case</p>
-                  : caseAlerts.map(a => (
+                  : caseLinkedAlerts.map(a => (
                     <div key={a.id}
                       onClick={() => setSimProfile({ msisdn: a.msisdn, score: a.score, fraudType: a.type })}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.mutedL}`, cursor: "pointer" }}>
@@ -446,7 +456,7 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
                 onClick={handleCreateCase}
                 disabled={!newCase.name.trim() || creating}
                 style={{ flex: 2, justifyContent: "center" }}>
-                {creating ? "Création…" : "📁 Créer le case"}
+                {creating ? "Création…" : "Créer le case"}
               </Btn>
             </div>
           </div>

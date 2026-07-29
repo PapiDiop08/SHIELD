@@ -1,5 +1,5 @@
 // ── SHIELD SimProfile Page — FULL LINK ───────────────────────────────────────
-// Colonnes réelles Supabase vérifiées
+// Colonnes réelles AAR DB vérifiées
 
 import { useState, useEffect, useCallback } from "react";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
@@ -10,7 +10,7 @@ import { blockAndBlacklist } from "../blockAndBlacklist.js";
 
 // ── Actions sur une alerte depuis SimProfile ──────────────────────────────
 async function applyAlertAction(alertId, action, msisdn, operatorId, addLog, setBlockings) {
-  // 1. Mettre à jour le statut dans Supabase
+  // 1. Mettre à jour le statut dans AAR DB
   const statusMap = {
     block:          'blocked',
     investigate:    'investigating',
@@ -168,7 +168,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
   const { profile, cdrHistory, simSwaps, relatedAlerts, cellMovements,
           loading, error, fetchProfile } = useSimProfile(searchMsisdn);
 
-  // Action sur une alerte — met à jour localement + Supabase
+  // Action sur une alerte — met à jour localement + AAR DB
   // Si BLOCAGE : toutes les alertes du MSISDN sont bloquées
   async function handleAlertAction(alertId, action, operatorId) {
     setActionLoading(alertId + action);
@@ -252,7 +252,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
         {onBack && <Btn variant="ghost" onClick={onBack}>← Retour</Btn>}
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.navy }}>Profil SIM</h1>
-          <p style={{ margin: "3px 0 0", color: C.textL, fontSize: 12 }}>Analyse complète depuis les CDR Supabase</p>
+          <p style={{ margin: "3px 0 0", color: C.textL, fontSize: 12 }}>Analyse complète depuis les CDR</p>
         </div>
       </div>
 
@@ -262,7 +262,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
           placeholder="Entrer un MSISDN (ex: 221776540001)"
           style={{ flex: 1, minWidth: 220, border: `1px solid ${C.mutedL}`, borderRadius: 8,
             padding: "9px 12px", fontSize: 13, color: C.navy, outline: "none" }} />
-        <Btn type="submit">🔍 Analyser</Btn>
+        <Btn type="submit">Rch Analyser</Btn>
       </form>
 
       {/* Quick picks */}
@@ -281,22 +281,22 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
       {/* États */}
       {!searchMsisdn && (
         <Card style={{ padding: "60px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>MOB</div>
           <div>Entrez un MSISDN pour analyser son profil</div>
         </Card>
       )}
       {loading && <Card style={{ padding: "60px", textAlign: "center", color: C.muted }}>
-        <div style={{ fontSize: 28, marginBottom: 12 }}>⏳</div>
-        <div>Chargement depuis Supabase…</div>
+        <div style={{ fontSize: 28, marginBottom: 12 }}>…</div>
+        <div>Chargement chargement…</div>
       </Card>}
       {error && <div style={{ background: C.dangerL, border: `1px solid ${C.danger}44`,
-        borderRadius: 10, padding: 16, color: C.danger, marginBottom: 16 }}>⚠️ {error}</div>}
+        borderRadius: 10, padding: 16, color: C.danger, marginBottom: 16 }}>! {error}</div>}
       {!loading && searchMsisdn && !profile && !error && (
         <Card style={{ padding: "60px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>Rch</div>
           <div>Aucun CDR trouvé pour <strong style={{ color: C.navy }}>{searchMsisdn}</strong></div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
-            Ce MSISDN n'est pas dans les CDR Supabase
+            Ce MSISDN n'est pas dans les CDR
           </div>
         </Card>
       )}
@@ -314,7 +314,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                   {profile.imei && <Badge label={`IMEI: ${profile.imei}`} color={C.sky} small />}
                   {profile.imei_prefix6 && <Badge label={`Préfixe: ${profile.imei_prefix6}`} color={C.purple} small />}
                   {profile.cell_id && <Badge label={`Cell: ${profile.cell_id}`} color={C.warning} small />}
-                  {profile.cell_id_fixed && <Badge label="Antenne fixe ⚠" color={C.danger} small />}
+                  {profile.cell_id_fixed && <Badge label="Antenne fixe !" color={C.danger} small />}
                   {profile.distinct_cell_ids > 0 && <Badge label={`${profile.distinct_cell_ids} antenne(s)`} color={C.teal} small />}
                 </div>
               </div>
@@ -331,32 +331,32 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
           {/* Analyse rapide */}
           {(() => {
             const flags = [];
-            if ((profile.score_simbox || 0) >= 70) flags.push({ color: C.danger, icon: "📦",
+            if ((profile.score_simbox || 0) >= 70) flags.push({ color: C.danger, icon: "Pack",
               text: `SIM Box probable — score ${Math.round(profile.score_simbox)}/100`,
               detail: "Antenne fixe, zéro data, appels massifs" });
-            if ((profile.score_wangiri || 0) >= 70) flags.push({ color: C.danger, icon: "📞",
+            if ((profile.score_wangiri || 0) >= 70) flags.push({ color: C.danger, icon: "TEL",
               text: `Wangiri probable — score ${Math.round(profile.score_wangiri)}/100`,
               detail: "Appels courts séquentiels vers numéros premium" });
-            if ((profile.score_ato || 0) >= 70) flags.push({ color: C.danger, icon: "🔓",
+            if ((profile.score_ato || 0) >= 70) flags.push({ color: C.danger, icon: "OPN",
               text: `ATO probable — score ${Math.round(profile.score_ato)}/100`,
               detail: "Account Takeover — activité MM suspecte" });
-            if ((profile.score_irsf || 0) >= 70) flags.push({ color: C.warning, icon: "🌍",
+            if ((profile.score_irsf || 0) >= 70) flags.push({ color: C.warning, icon: "GEO",
               text: `IRSF probable — score ${Math.round(profile.score_irsf)}/100`,
               detail: "Trafic international massif vers numéros surtaxés" });
-            if (profile.cell_id_fixed) flags.push({ color: C.warning, icon: "📡",
+            if (profile.cell_id_fixed) flags.push({ color: C.warning, icon: "ANT",
               text: "Antenne fixe détectée",
               detail: `SIM toujours sur ${profile.cell_id} — indicateur SIM Box` });
-            if (simSwaps.length > 0) flags.push({ color: C.danger, icon: "🔄",
+            if (simSwaps.length > 0) flags.push({ color: C.danger, icon: "Sync",
               text: `${simSwaps.length} SIM Swap(s)`,
               detail: "Risque ATO élevé après changement de SIM" });
-            if (relatedAlerts.length > 0) flags.push({ color: C.danger, icon: "🚨",
+            if (relatedAlerts.length > 0) flags.push({ color: C.danger, icon: "!",
               text: `${relatedAlerts.length} alerte(s) générée(s)`,
               detail: [...new Set(relatedAlerts.map(a => a.fraud_type))].join(", ") });
-            if (flags.length === 0) flags.push({ color: C.success, icon: "✅",
+            if (flags.length === 0) flags.push({ color: C.success, icon: "OK",
               text: "Aucun indicateur de fraude", detail: "Comportement normal" });
             return (
               <Card style={{ padding: "16px 20px", marginBottom: 14, borderLeft: `4px solid ${flags[0].color}` }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>⚡ Analyse rapide</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>API Analyse rapide</div>
                 {flags.map((f, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10,
                     background: f.color + "08", borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>
@@ -397,14 +397,14 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
           {/* Stats depuis v_sim_profile */}
           <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
             {[
-              { l: "Appels sortants",   v: profile.call_out_count ?? "—",       icon: "📞" },
-              { l: "Appels entrants",   v: profile.call_in_count ?? "—",        icon: "📲" },
+              { l: "Appels sortants",   v: profile.call_out_count ?? "—",       icon: "TEL" },
+              { l: "Appels entrants",   v: profile.call_in_count ?? "—",        icon: "IN" },
               { l: "Durée moy (s)",     v: profile.avg_duration_out ? Math.round(profile.avg_duration_out) : "—", icon: "⏱" },
-              { l: "SMS sortants",      v: profile.sms_out_count ?? "—",        icon: "💬" },
-              { l: "Vélocité/min",      v: profile.velocity_calls_per_min ? profile.velocity_calls_per_min.toFixed(2) : "—", icon: "⚡" },
-              { l: "Appels intl",       v: profile.call_intl_out_count ?? "—",  icon: "🌍" },
-              { l: "SIM Swaps",         v: simSwaps.length,                      icon: "🔄" },
-              { l: "Alertes liées",     v: relatedAlerts.length,                 icon: "🚨" },
+              { l: "SMS sortants",      v: profile.sms_out_count ?? "—",        icon: "SMS" },
+              { l: "Vélocité/min",      v: profile.velocity_calls_per_min ? profile.velocity_calls_per_min.toFixed(2) : "—", icon: "API" },
+              { l: "Appels intl",       v: profile.call_intl_out_count ?? "—",  icon: "GEO" },
+              { l: "SIM Swaps",         v: simSwaps.length,                      icon: "Sync" },
+              { l: "Alertes liées",     v: relatedAlerts.length,                 icon: "!" },
             ].map((s, i) => (
               <Card key={i} style={{ flex: "1 1 120px", padding: "12px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 18, marginBottom: 4 }}>{s.icon}</div>
@@ -417,7 +417,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
           {/* Stats MM si disponibles */}
           {(profile.mm_sent_count > 0 || profile.mm_sent_amount > 0) && (
             <Card style={{ padding: "16px 20px", marginBottom: 14, borderLeft: `4px solid ${C.teal}` }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>💸 Mobile Money</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 10 }}>MM Mobile Money</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 {[
                   { l: "Envois",           v: profile.mm_sent_count || 0 },
@@ -465,13 +465,13 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                             </td>
                             <td style={{ padding: "8px 12px" }}>
                               <span style={{ fontSize: 10, color: c.is_international ? C.warning : C.muted }}>
-                                {c.is_international ? "🌍 Intl" : c.call_type || "Local"}
+                                {c.is_international ? "GEO Intl" : c.call_type || "Local"}
                               </span>
                             </td>
                             <td style={{ padding: "8px 12px" }}>
                               {c.is_premium
                                 ? <Badge label="Premium" color={C.danger} small />
-                                : <span style={{ color: C.success, fontSize: 12 }}>✓</span>}
+                                : <span style={{ color: C.success, fontSize: 12 }}>v</span>}
                             </td>
                           </tr>
                         ))}
@@ -487,7 +487,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                 <span>Alertes liées ({relatedAlerts.length})</span>
                 {actionDone && (
                   <span style={{ fontSize: 11, color: C.success, fontWeight: 600 }}>
-                    ✅ {statusLabel(actionDone.newStatus)} — retour dans 1s
+                    OK {statusLabel(actionDone.newStatus)} — retour dans 1s
                   </span>
                 )}
               </div>
@@ -522,28 +522,28 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                             onClick={() => handleAlertAction(a.id, 'block', a.operator_id)}
                             style={{ padding: "5px 12px", background: C.dangerL, border: `1px solid ${C.danger}44`,
                               color: C.danger, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            {actionLoading === a.id + 'block' ? '...' : '🚫 Bloquer'}
+                            {actionLoading === a.id + 'block' ? '...' : '[X] Bloquer'}
                           </button>
                           <button
                             disabled={!!actionLoading}
                             onClick={() => handleAlertAction(a.id, 'investigate', a.operator_id)}
                             style={{ padding: "5px 12px", background: C.warningL, border: `1px solid ${C.warning}44`,
                               color: C.warning, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            {actionLoading === a.id + 'investigate' ? '...' : '🔍 En cours'}
+                            {actionLoading === a.id + 'investigate' ? '...' : 'Rch En cours'}
                           </button>
                           <button
                             disabled={!!actionLoading}
                             onClick={() => handleAlertAction(a.id, 'false_positive', a.operator_id)}
                             style={{ padding: "5px 12px", background: C.skyL, border: `1px solid ${C.sky}44`,
                               color: C.sky, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            {actionLoading === a.id + 'false_positive' ? '...' : '✓ Faux positif'}
+                            {actionLoading === a.id + 'false_positive' ? '...' : 'v Faux positif'}
                           </button>
                           <button
                             disabled={!!actionLoading}
                             onClick={() => handleAlertAction(a.id, 'clear', a.operator_id)}
                             style={{ padding: "5px 12px", background: C.successL, border: `1px solid ${C.success}44`,
                               color: C.success, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            {actionLoading === a.id + 'clear' ? '...' : '✅ Clôturer'}
+                            {actionLoading === a.id + 'clear' ? '...' : 'OK Clôturer'}
                           </button>
                         </div>
                       )}
@@ -571,7 +571,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                     }}
                     style={{ width: "100%", padding: "8px", background: C.danger, border: "none",
                       color: C.white, borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
-                    🚫 Bloquer {searchMsisdn} — toutes les alertes
+                    [X] Bloquer {searchMsisdn} — toutes les alertes
                   </button>
                 </div>
               )}
@@ -581,7 +581,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
           {/* ── Actions sur le profil — Listes ── */}
           <Card style={{ padding: "16px 20px", marginBottom: 14, borderLeft: `4px solid ${C.purple}` }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.navy, marginBottom: 12 }}>
-              🛡️ Actions sur ce profil
+              SEC Actions sur ce profil
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               {/* MSISDN */}
@@ -591,9 +591,9 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {[
-                    { label: "🚫 Blacklister", list: "blacklist", color: C.danger },
-                    { label: "✅ Whitelister", list: "whitelist", color: C.success },
-                    { label: "👁 Watchlist",   list: "watchlist", color: C.warning },
+                    { label: "[X] Blacklister", list: "blacklist", color: C.danger },
+                    { label: "OK Whitelister", list: "whitelist", color: C.success },
+                    { label: "WATCH Watchlist",   list: "watchlist", color: C.warning },
                   ].map(opt => (
                     <button key={opt.list}
                       onClick={async () => {
@@ -608,7 +608,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                         if (addEntry) addEntry({ list: opt.list, type: "msisdn", value: profile.msisdn, reason: `SimProfile` }, opId);
                         addLog?.(`${opt.list.toUpperCase()}_MSISDN`, "control_list", profile.msisdn,
                           `${opt.label} MSISDN ${profile.msisdn}`, "SimProfile");
-                        alert(`✅ ${profile.msisdn} ajouté en ${opt.list}`);
+                        alert(`OK ${profile.msisdn} ajouté en ${opt.list}`);
                       }}
                       style={{ padding: "6px 10px", background: opt.color + "15",
                         border: `1px solid ${opt.color}44`, color: opt.color,
@@ -627,8 +627,8 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {[
-                      { label: "🚫 Blacklister IMEI", list: "blacklist", color: C.danger },
-                      { label: "👁 Surveiller IMEI",  list: "watchlist", color: C.warning },
+                      { label: "[X] Blacklister IMEI", list: "blacklist", color: C.danger },
+                      { label: "WATCH Surveiller IMEI",  list: "watchlist", color: C.warning },
                     ].map(opt => (
                       <button key={opt.list}
                         onClick={async () => {
@@ -642,7 +642,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                           if (addEntry) addEntry({ list: opt.list, type: "imei", value: profile.imei, reason: `SimProfile IMEI` }, opId);
                           addLog?.(`${opt.list.toUpperCase()}_IMEI`, "control_list", profile.imei,
                             `${opt.label} IMEI ${profile.imei}`, "SimProfile");
-                          alert(`✅ IMEI ${profile.imei?.slice(0,8)}... ajouté en ${opt.list}`);
+                          alert(`OK IMEI ${profile.imei?.slice(0,8)}... ajouté en ${opt.list}`);
                         }}
                         style={{ padding: "6px 10px", background: opt.color + "15",
                           border: `1px solid ${opt.color}44`, color: opt.color,
@@ -662,8 +662,8 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {[
-                      { label: "🚫 Blacklister Cell", list: "blacklist", color: C.danger },
-                      { label: "👁 Surveiller Cell",  list: "watchlist", color: C.warning },
+                      { label: "[X] Blacklister Cell", list: "blacklist", color: C.danger },
+                      { label: "WATCH Surveiller Cell",  list: "watchlist", color: C.warning },
                     ].map(opt => (
                       <button key={opt.list}
                         onClick={async () => {
@@ -677,7 +677,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                           if (addEntry) addEntry({ list: opt.list, type: "cell_id", value: profile.cell_id, reason: `SimProfile Cell` }, opId);
                           addLog?.(`${opt.list.toUpperCase()}_CELL`, "control_list", profile.cell_id,
                             `${opt.label} Cell ${profile.cell_id}`, "SimProfile");
-                          alert(`✅ Cell ${profile.cell_id} ajouté en ${opt.list}`);
+                          alert(`OK Cell ${profile.cell_id} ajouté en ${opt.list}`);
                         }}
                         style={{ padding: "6px 10px", background: opt.color + "15",
                           border: `1px solid ${opt.color}44`, color: opt.color,
@@ -698,7 +698,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                 SIM Swaps ({simSwaps.length})
               </div>
               {simSwaps.length === 0
-                ? <div style={{ color: C.success, fontSize: 12 }}>✓ Aucun SIM Swap détecté</div>
+                ? <div style={{ color: C.success, fontSize: 12 }}>v Aucun SIM Swap détecté</div>
                 : simSwaps.map((s, i) => (
                   <div key={i} style={{ padding: "8px 0", borderBottom: `1px solid ${C.mutedL}` }}>
                     <div style={{ fontSize: 12, color: C.navy, fontFamily: "monospace" }}>
@@ -735,7 +735,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
               }
               {cellMovements.length === 1 && (
                 <div style={{ marginTop: 8, fontSize: 11, color: C.danger, fontWeight: 600 }}>
-                  ⚠ SIM fixe sur une seule antenne — indicateur SIM Box fort
+                  ! SIM fixe sur une seule antenne — indicateur SIM Box fort
                 </div>
               )}
             </Card>

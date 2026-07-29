@@ -37,7 +37,7 @@ export default function Settings({ operators, setOperators, addLog }) {
 
       {/* Tabs */}
       <div style={{display:"flex",gap:4,marginBottom:20,background:C.white,border:`1px solid ${C.mutedL}`,borderRadius:12,padding:5}}>
-        {[{k:"sla",l:"⏱ SLA"},{k:"general",l:"⚙ Général"}].map(t=>(
+        {[{k:"sla",l:"SLA"},{k:"general",l:"Général"}].map(t=>(
           <button key={t.k} onClick={()=>setActiveTab(t.k)}
             style={{flex:1,padding:"9px 14px",background:activeTab===t.k?C.navy:"none",border:"none",borderRadius:8,cursor:"pointer",color:activeTab===t.k?C.white:C.textL,fontWeight:700,fontSize:13}}>
             {t.l}
@@ -51,7 +51,7 @@ export default function Settings({ operators, setOperators, addLog }) {
           <div style={{background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:C.navy}}>
             <strong>SLA (Service Level Agreement)</strong> — Définissez les délais maximum de traitement des alertes par sévérité et par opérateur.
             La SLA peut être activée ou désactivée indépendamment pour chaque opérateur.
-            {!can("manageSettings") && <div style={{marginTop:6,fontSize:12,color:C.warning}}>⚠ Seul l'Admin Opérateur peut modifier les SLA.</div>}
+            {!can("manageSettings") && <div style={{marginTop:6,fontSize:12,color:C.warning}}>! Seul l'Admin Opérateur peut modifier les SLA.</div>}
           </div>
 
           {operators.map(op => (
@@ -70,7 +70,7 @@ export default function Settings({ operators, setOperators, addLog }) {
 
               {op.slaEnabled && op.slaConfig && (
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
-                  {[["Critique 🔴","critical",C.danger],["Élevé 🟠","high",C.warning],["Moyen 🔵","medium",C.sky]].map(([label,key,color])=>(
+                  {[["Critique R","critical",C.danger],["Élevé O","high",C.warning],["Moyen B","medium",C.sky]].map(([label,key,color])=>(
                     <div key={key} style={{background:C.bg,borderRadius:10,padding:"14px 16px",border:`1px solid ${color}22`}}>
                       <label style={{display:"block",fontSize:11,fontWeight:700,color,textTransform:"uppercase",marginBottom:10}}>{label}</label>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -89,7 +89,7 @@ export default function Settings({ operators, setOperators, addLog }) {
 
           {can("manageSettings") && (
             <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
-              <Btn onClick={saveSLA}>💾 Sauvegarder les SLA</Btn>
+              <Btn onClick={saveSLA}>Save Sauvegarder les SLA</Btn>
             </div>
           )}
         </div>

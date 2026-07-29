@@ -1,5 +1,5 @@
 // ── SHIELD UDF Manager — FULL LINK ───────────────────────────────────────────
-// Données depuis udf_fields Supabase — plus de UDF_FIELDS mock
+// Données depuis udf_fields AAR DB — plus de UDF_FIELDS mock
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { C } from "../theme.js";
@@ -9,7 +9,7 @@ import { supabase } from "../supabase.js";
 
 const TYPE_COLORS = { number: C.sky, text: C.purple, boolean: C.teal, datetime: C.warning };
 
-// Mapping cat Supabase → label lisible
+// Mapping cat AAR DB → label lisible
 const CAT_LABELS = {
   voice: "Voice — Agrégats", sms: "SMS — Agrégats", data: "Data — Agrégats",
   mm: "Mobile Money", computed: "Scores calculés", roaming: "Roaming", sim: "SIM — Profil",
@@ -19,7 +19,7 @@ const CAT_COLORS = {
   mm: C.warning, computed: C.purple, roaming: C.navy, sim: C.danger,
 };
 
-// ── Hook : udf_fields depuis Supabase ────────────────────────────────────
+// ── Hook : udf_fields depuis AAR DB ────────────────────────────────────
 function useUDFFields() {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -190,10 +190,10 @@ export default function UDFManager({ addLog }) {
 
       <SectionHeader
         title="Champs CDR — UDF"
-        sub={loading ? "Chargement depuis Supabase…" : `${fields.length} champs définis · Supabase · Modification : Super Admin uniquement`}
+        sub={loading ? "Chargement chargement…" : `${fields.length} champs définis  · Modification : Super Admin uniquement`}
         action={
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={refetch} style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>🔄</button>
+            <button onClick={refetch} style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>Sync</button>
             <Btn onClick={() => { setEditField(null); setNewField(EMPTY_FIELD); setShowAdd(true); }}>+ Ajouter un champ</Btn>
           </div>
         }
@@ -201,7 +201,7 @@ export default function UDFManager({ addLog }) {
 
       {/* Info banner */}
       <div style={{ background: C.skyL, border: `1px solid ${C.sky}33`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: C.navy }}>
-        <strong>UDF (User Defined Fields)</strong> — Champs CDR utilisés dans les règles de détection. Persistés dans Supabase. Chaque champ correspond à une colonne CDR ou à une valeur calculée.
+        <strong>UDF (User Defined Fields)</strong> — Champs CDR utilisés dans les règles de détection. Persistés en base de données. Chaque champ correspond à une colonne CDR ou à une valeur calculée.
       </div>
 
       {/* Stats par catégorie */}
@@ -229,7 +229,7 @@ export default function UDFManager({ addLog }) {
           options={[{ value: "all", label: "Tous types" }, { value: "number", label: "Numérique" }, { value: "text", label: "Texte" }, { value: "boolean", label: "Booléen" }]} />
         {(search || filterCat !== "all" || filterType !== "all") && (
           <button onClick={() => { setSearch(""); setFilterCat("all"); setFilterType("all"); }}
-            style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>✕</button>
+            style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>X</button>
         )}
       </div>
 
@@ -247,7 +247,7 @@ export default function UDFManager({ addLog }) {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={8} style={{ padding: "40px", textAlign: "center", color: C.muted }}>⏳ Chargement depuis Supabase…</td></tr>
+                <tr><td colSpan={8} style={{ padding: "40px", textAlign: "center", color: C.muted }}>⏳ Chargement chargement…</td></tr>
               )}
               {!loading && filtered.map((f, idx) => (
                 <tr key={f.id}
@@ -291,9 +291,9 @@ export default function UDFManager({ addLog }) {
                       {currentUser?.role === "superadmin" && (
                         <>
                           <button onClick={() => openEdit(f)}
-                            style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 11, color: C.textL }}>✏</button>
+                            style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 11, color: C.textL }}>Edit</button>
                           <button onClick={() => handleDelete(f)}
-                            style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 11, color: C.danger }}>🗑</button>
+                            style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 11, color: C.danger }}>Del</button>
                         </>
                       )}
                     </div>
@@ -314,7 +314,7 @@ export default function UDFManager({ addLog }) {
           <div style={{ padding: "18px 20px" }}>
             {editField && (
               <div style={{ background: C.warningL, border: `1px solid ${C.warning}44`, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: C.warning, fontWeight: 600 }}>
-                ⚠ Modification d'un champ existant — Les règles utilisant ce champ seront affectées
+                ! Modification d'un champ existant — Les règles utilisant ce champ seront affectées
               </div>
             )}
 
@@ -368,7 +368,7 @@ export default function UDFManager({ addLog }) {
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="ghost" onClick={() => { setShowAdd(false); setEditField(null); }} style={{ flex: 1, justifyContent: "center" }}>Annuler</Btn>
               <Btn onClick={saveField} disabled={!newField.key || !newField.label || saving} style={{ flex: 2, justifyContent: "center" }}>
-                {saving ? "Sauvegarde…" : editField ? "💾 Sauvegarder" : "Ajouter le champ"}
+                {saving ? "Sauvegarde…" : editField ? "Save Sauvegarder" : "Ajouter le champ"}
               </Btn>
             </div>
           </div>

@@ -80,13 +80,13 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
 
       <SectionHeader title="Whitelist" sub="Numéros, IMEI et Cell IDs exemptés de détection"
         action={<>
-          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>📤 Import</Btn>
+          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>Export Import</Btn>
           <Btn onClick={()=>setShowAdd(true)}>+ Ajouter</Btn>
         </>} />
 
       {/* Info banner */}
       <div style={{ background:C.successL,border:`1px solid ${C.success}44`,borderRadius:10,padding:"12px 18px",marginBottom:18,display:"flex",alignItems:"center",gap:12 }}>
-        <span style={{ fontSize:20 }}>✅</span>
+        <span style={{ fontSize:20 }}>OK</span>
         <div>
           <div style={{ fontSize:13,fontWeight:700,color:C.success }}>Whitelist — Exemptions de détection</div>
           <div style={{ fontSize:11,color:C.textL,marginTop:2 }}>Les entrées whitelist ne déclenchent aucune alerte même si elles correspondent à une règle. Utilisez la whitelist pour les numéros légitimes (service client, machines, partenaires).</div>
@@ -108,7 +108,7 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
         <SearchInput value={search} onChange={setSearch} placeholder="Valeur, raison..." />
         <Select value={filterType} onChange={setFilterType} options={[{value:"all",label:"Tous types"},...BL_TYPES.map(t=>({value:t,label:t}))]} />
         <Select value={filterStatus} onChange={setFilterStatus} options={[{value:"all",label:"Tous statuts"},{value:"active",label:"Actifs"},{value:"inactive",label:"Inactifs"}]} />
-        {(search||filterType!=="all"||filterStatus!=="all") && <button onClick={()=>{setSearch("");setFilterType("all");setFilterStatus("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>✕</button>}
+        {(search||filterType!=="all"||filterStatus!=="all") && <button onClick={()=>{setSearch("");setFilterType("all");setFilterStatus("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>X</button>}
       </div>
 
       <div style={{ fontSize:12,color:C.textL,marginBottom:8 }}>{wlEntries.length} entrée{wlEntries.length>1?"s":""}</div>
@@ -127,7 +127,7 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
             <tbody>
               {wlEntries.length===0 && (
                 <tr><td colSpan={7} style={{ padding:"48px",textAlign:"center",color:C.muted }}>
-                  <div style={{ fontSize:28,marginBottom:8 }}>✅</div>
+                  <div style={{ fontSize:28,marginBottom:8 }}>OK</div>
                   <p style={{ margin:0 }}>Aucune entrée dans la Whitelist</p>
                   <button onClick={()=>setShowAdd(true)} style={{ marginTop:12,background:C.success,color:C.white,border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13 }}>+ Ajouter le premier</button>
                 </td></tr>
@@ -157,7 +157,7 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
                       <div style={{ display:"flex",gap:4 }}>
                         {e.type==="MSISDN"&&<Btn variant="sky" small onClick={()=>setSimProfile({msisdn:e.value,score:10,fraudType:"Whitelist"})}>SIM</Btn>}
                         <Btn variant="danger" small onClick={()=>setConfirm({msg:`Déplacer ${e.value} vers la Blacklist ?`,action:"blacklist",id:e.id})}>→ BL</Btn>
-                        <button onClick={()=>setConfirm({msg:`Supprimer ${e.value} de la Whitelist ?`,action:"delete",id:e.id})} style={{ background:C.dangerL,border:"none",color:C.danger,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:13 }}>🗑</button>
+                        <button onClick={()=>setConfirm({msg:`Supprimer ${e.value} de la Whitelist ?`,action:"delete",id:e.id})} style={{ background:C.dangerL,border:"none",color:C.danger,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:13 }}>Del</button>
                       </div>
                     </td>
                   </tr>
@@ -173,7 +173,7 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
         <Modal title="Ajouter à la Whitelist" onClose={()=>setShowAdd(false)} width={480}>
           <div style={{ padding:"18px 20px" }}>
             <div style={{ background:C.successL,border:`1px solid ${C.success}44`,borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:C.textL }}>
-              ✅ Les entrées whitelist ne génèrent aucune alerte même en cas de correspondance avec une règle.
+              OK Les entrées whitelist ne génèrent aucune alerte même en cas de correspondance avec une règle.
             </div>
             <p style={{ margin:"0 0 8px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Type</p>
             <div style={{ display:"flex",flexWrap:"wrap",gap:5,marginBottom:12 }}>
@@ -190,7 +190,7 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
               style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:12,color:C.navy,outline:"none",boxSizing:"border-box",resize:"vertical",marginBottom:18 }} />
             <div style={{ display:"flex",gap:8 }}>
               <Btn variant="ghost" onClick={()=>setShowAdd(false)} style={{ flex:1,justifyContent:"center" }}>Annuler</Btn>
-              <Btn onClick={addEntry} disabled={!addForm.value||!addForm.reason} style={{ flex:2,justifyContent:"center",background:C.success,border:"none",color:C.white }}>✅ Ajouter à la Whitelist</Btn>
+              <Btn onClick={addEntry} disabled={!addForm.value||!addForm.reason} style={{ flex:2,justifyContent:"center",background:C.success,border:"none",color:C.white }}>OK Ajouter à la Whitelist</Btn>
             </div>
           </div>
         </Modal>
@@ -225,7 +225,7 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
                 </div>
                 <div style={{ display:"flex",gap:8 }}>
                   <Btn variant="ghost" onClick={()=>setImportStep(1)} style={{ flex:1,justifyContent:"center" }}>← Modifier</Btn>
-                  <Btn onClick={importEntries} style={{ flex:2,justifyContent:"center",background:C.success,border:"none",color:C.white }}>✅ Confirmer l'import</Btn>
+                  <Btn onClick={importEntries} style={{ flex:2,justifyContent:"center",background:C.success,border:"none",color:C.white }}>OK Confirmer l'import</Btn>
                 </div>
               </div>
             )}

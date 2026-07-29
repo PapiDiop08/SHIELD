@@ -1,5 +1,5 @@
 // ── SHIELD Billing Page — FULL LINK ─────────────────────────────────────────
-// Calcul depuis operators/alerts/blockings Supabase (props) + ai_usage Supabase
+// Calcul depuis operators/alerts/blockings données + ai_usage AAR DB
 
 import { useState, useEffect, useCallback } from "react";
 import { C } from "../theme.js";
@@ -7,7 +7,7 @@ import { Card, Btn, SectionHeader, Badge } from "../components.jsx";
 import { useAuth } from "../AuthContext.jsx";
 import { supabase } from "../supabase.js";
 
-// ── Hook : usage IA depuis Supabase par opérateur ────────────────────────
+// ── Hook : usage IA depuis AAR DB par opérateur ────────────────────────
 function useAIUsage() {
   const [aiUsage, setAIUsage] = useState({});
   const [loading, setLoading] = useState(true);
@@ -83,15 +83,15 @@ export default function Billing({ operators, alerts, blockings }) {
     <div style={{ padding: "28px 30px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
         title="Facturation"
-        sub={`${currentMonth} · Données Supabase en temps réel · Visible Super Admin uniquement`}
+        sub={`${currentMonth} · Données en temps réel · Visible Super Admin uniquement`}
         action={
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={refetchAI}
               style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
-              🔄
+              Sync
             </button>
-            <Btn variant="secondary">📥 Exporter Excel</Btn>
-            <Btn>📄 Générer factures PDF</Btn>
+            <Btn variant="secondary">Import Exporter Excel</Btn>
+            <Btn>Générer factures PDF</Btn>
           </div>
         }
       />
@@ -108,11 +108,11 @@ export default function Billing({ operators, alerts, blockings }) {
         </Card>
         <Card style={{ flex: 1, padding: "16px 20px", borderTop: `3px solid ${C.warning}` }}>
           <div style={{ fontSize: 22, fontWeight: 900, color: C.warning }}>{monthAlerts.length}</div>
-          <div style={{ fontSize: 12, color: C.textL, marginTop: 4 }}>Alertes ce mois (Supabase)</div>
+          <div style={{ fontSize: 12, color: C.textL, marginTop: 4 }}>Alertes ce mois </div>
         </Card>
         <Card style={{ flex: 1, padding: "16px 20px", borderTop: `3px solid ${C.danger}` }}>
           <div style={{ fontSize: 22, fontWeight: 900, color: C.danger }}>{activeBlockings.length}</div>
-          <div style={{ fontSize: 12, color: C.textL, marginTop: 4 }}>Blocages actifs (Supabase)</div>
+          <div style={{ fontSize: 12, color: C.textL, marginTop: 4 }}>Blocages actifs </div>
         </Card>
       </div>
 
@@ -170,8 +170,8 @@ export default function Billing({ operators, alerts, blockings }) {
 
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
             <Btn variant="secondary" small onClick={() => setShowDetail(op)}>Voir détails</Btn>
-            <Btn variant="ghost" small>📄 Générer facture PDF</Btn>
-            <Btn variant="ghost" small>📧 Envoyer par email</Btn>
+            <Btn variant="ghost" small>Générer facture PDF</Btn>
+            <Btn variant="ghost" small>Email Envoyer par email</Btn>
           </div>
         </Card>
       ))}
@@ -182,7 +182,7 @@ export default function Billing({ operators, alerts, blockings }) {
           <div style={{ background: C.white, borderRadius: 16, padding: 28, width: 560, maxWidth: "90vw", maxHeight: "80vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 17, fontWeight: 900, color: C.navy }}>{showDetail.name} — Détail facturation</div>
-              <button onClick={() => setShowDetail(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.muted }}>✕</button>
+              <button onClick={() => setShowDetail(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.muted }}>X</button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               {[
@@ -216,7 +216,7 @@ export default function Billing({ operators, alerts, blockings }) {
 
       {operators.length === 0 && (
         <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🏢</div>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>OP</div>
           <p style={{ margin: 0 }}>Aucun opérateur configuré</p>
         </Card>
       )}
