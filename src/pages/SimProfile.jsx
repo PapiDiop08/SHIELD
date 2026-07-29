@@ -262,7 +262,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
           placeholder="Entrer un MSISDN (ex: 221776540001)"
           style={{ flex: 1, minWidth: 220, border: `1px solid ${C.mutedL}`, borderRadius: 8,
             padding: "9px 12px", fontSize: 13, color: C.navy, outline: "none" }} />
-        <Btn type="submit">Rch Analyser</Btn>
+        <Btn type="submit">🔍 Analyser</Btn>
       </form>
 
       {/* Quick picks */}
@@ -293,7 +293,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
         borderRadius: 10, padding: 16, color: C.danger, marginBottom: 16 }}>! {error}</div>}
       {!loading && searchMsisdn && !profile && !error && (
         <Card style={{ padding: "60px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>Rch</div>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📡</div>
           <div>Aucun CDR trouvé pour <strong style={{ color: C.navy }}>{searchMsisdn}</strong></div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
             Ce MSISDN n'est pas dans les CDR
@@ -529,7 +529,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
                             onClick={() => handleAlertAction(a.id, 'investigate', a.operator_id)}
                             style={{ padding: "5px 12px", background: C.warningL, border: `1px solid ${C.warning}44`,
                               color: C.warning, borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            {actionLoading === a.id + 'investigate' ? '...' : 'Rch En cours'}
+                            {actionLoading === a.id + 'investigate' ? '...' : 'En cours…'}
                           </button>
                           <button
                             disabled={!!actionLoading}

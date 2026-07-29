@@ -110,7 +110,9 @@ export function EmptyState({ icon, text }) {
 export function SearchInput({ value, onChange, placeholder = "Rechercher..." }) {
   return (
     <div style={{ position: "relative", flex: 1, minWidth: 160 }}>
-      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted, fontSize: 13 }}>Rch</span>
+      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.muted }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+      </span>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
         style={{ width: "100%", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "8px 10px 8px 30px", fontSize: 12, color: C.navy, outline: "none", boxSizing: "border-box", background: C.white }} />
     </div>
