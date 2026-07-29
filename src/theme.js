@@ -1,16 +1,22 @@
-// ── SHIELD Theme ─────────────────────────────────────────────────────────
+// ── SHIELD Theme — aligné AAR Mobile Money ───────────────────────────────
 export const C = {
-  bg: "#F4F6FB", white: "#FFFFFF",
-  navy: "#0D1B3E", navyL: "#162345", navyB: "#2A3F6A",
-  red: "#E83A2E", redL: "#FEF2F1",
-  sky: "#5BB8E8", skyL: "#EFF8FE",
-  muted: "#8A9BB5", mutedL: "#E8EDF5",
-  success: "#22C55E", successL: "#F0FDF4",
-  warning: "#F59E0B", warningL: "#FFFBEB",
-  danger: "#EF4444", dangerL: "#FEF2F2",
-  purple: "#8B5CF6", purpleL: "#F5F3FF",
-  teal: "#14B8A6", tealL: "#F0FDFA",
-  text: "#1A2A4A", textL: "#4A5B7A",
+  bg: "#F2F4F8", white: "#FFFFFF",
+  navy: "#0D1326", navyL: "#162040", navyB: "#1E2D5A",
+  red: "#E85D20", redL: "#FDF0EA",
+  orange: "#E85D20", orangeL: "#FDF0EA",
+  gold: "#D4921A", goldL: "#FBF3E2",
+  sky: "#2B8BBF", skyL: "#E8F4FB",
+  muted: "#7A849C", mutedL: "#E4E7F0",
+  success: "#1A9461", successL: "#E6F6EF",
+  warning: "#C4820F", warningL: "#FAF1E0",
+  danger: "#C93535", dangerL: "#FAEAEA",
+  purple: "#5B43D6", purpleL: "#EEEBFD",
+  teal: "#0E9E91", tealL: "#E4F6F5",
+  pink: "#C94A86", pinkL: "#FBEAF3",
+  indigo: "#3A58D4", indigoL: "#EAEEFb",
+  lime: "#6A9E12", limeL: "#EFF6E0",
+  magenta: "#9E1589", magentaL: "#F7E4F3",
+  text: "#111827", textL: "#3D4A66",
 };
 
 export const FRAUD_CATEGORIES = {
