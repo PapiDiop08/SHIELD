@@ -31,13 +31,13 @@ export default function Login() {
     if (!email || !password) return;
     setLoading(true);
     setError("");
-    const result = await login(email, null, password);
+    const result = await login(email, password);
     if (!result.success) { setError(result.error || "Email ou mot de passe incorrect"); setLoading(false); }
   }
 
   async function quickLogin(acc) {
     setLoading(true); setError("");
-    const result = await login(acc.email, null, acc.pwd);
+    const result = await login(acc.email, acc.pwd);
     if (!result.success) { setError(result.error); setLoading(false); }
   }
 
