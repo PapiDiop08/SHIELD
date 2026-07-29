@@ -20,12 +20,25 @@ export function AuthProvider({ children }) {
   // Restaurer session au démarrage
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) _loadProfile(session.user);
-      else setAuthLoading(false);
+      if (session?.user) {
+        _loadProfile(session.user);
+      } else {
+        // Fallback : session démo persistée en localStorage
+        try {
+          const saved = localStorage.getItem('aar_demo_user');
+          if (saved) { setCurrentUser(JSON.parse(saved)); }
+        } catch(_) {}
+        setAuthLoading(false);
+      }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) _loadProfile(session.user);
-      else { setCurrentUser(null); setAuthLoading(false); }
+      else {
+        // Ne pas déconnecter si c'est une session démo
+        const saved = localStorage.getItem('aar_demo_user');
+        if (!saved) { setCurrentUser(null); }
+        setAuthLoading(false);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -66,7 +79,7 @@ export function AuthProvider({ children }) {
     return entry;
   }, [currentUser]);
 
-  const login = useCallback(async (email, _ignored, password) => {
+  const login = useCallback(async (email, password) => {
     if (!password) return { success: false, error: "Mot de passe requis" };
 
     // 1. Essayer auth
@@ -77,7 +90,9 @@ export function AuthProvider({ children }) {
     const demo = DEMO_USERS.find(u => u.email === email && u.pwd === password);
     if (demo) {
       const { pwd: _, ...user } = demo;
-      setCurrentUser({ ...user, active: true, lastLogin: new Date().toISOString().slice(0,16), createdAt: "2025-08-01", operatorId: null });
+      const fullUser = { ...user, active: true, lastLogin: new Date().toISOString().slice(0,16), createdAt: "2025-08-01", operatorId: null };
+      setCurrentUser(fullUser);
+      localStorage.setItem('aar_demo_user', JSON.stringify(fullUser));
       setAuthLoading(false);
       return { success: true, user };
     }
@@ -87,6 +102,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem('aar_demo_user');
     setCurrentUser(null);
   }, []);
 
