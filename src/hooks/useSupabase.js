@@ -197,6 +197,17 @@ export function useRules() {
   }, []);
 
   useEffect(() => { fetch(); }, [fetch]);
+
+  // Realtime: re-fetch quand triggered/blocked sont mis à jour par le simulateur
+  useEffect(() => {
+    const sub = supabase.channel('rules-updates')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rules' }, () => {
+        fetch();
+      })
+      .subscribe();
+    return () => supabase.removeChannel(sub);
+  }, [fetch]);
+
   const setRules = useCallback((u) => setRulesState(u), []);
 
   const createRule = useCallback(async (rule) => {
