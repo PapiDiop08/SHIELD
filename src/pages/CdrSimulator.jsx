@@ -194,6 +194,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
         operator: currentOperator?.name || 'AAR Telco',
         operator_id: currentOperator?.id || null,
         created_at: new Date().toISOString(),
+        scope: 'telco',
       };
       supabase.from('alerts').insert(alertRow).select().then(({ data, error }) => {
         if (error) console.error('Alert insert error:', error);

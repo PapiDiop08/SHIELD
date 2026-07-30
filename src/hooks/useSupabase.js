@@ -125,6 +125,7 @@ export function useAlerts(operatorFilter) {
     let query = supabase
       .from('alerts')
       .select('*')
+      .eq('scope', 'telco')
       .order('created_at', { ascending: false })
       .limit(500);
     if (operatorFilter) query = query.eq('operator_id', operatorFilter);
