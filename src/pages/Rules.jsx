@@ -319,6 +319,20 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
   const totalTriggered = (rules || []).reduce((a, r) => a + r.triggered, 0);
   const totalBlocked   = (rules || []).reduce((a, r) => a + r.blocked, 0);
 
+  // ── Calculs Performance ────────────────────────────────────────────────────
+  const sortedByTriggered = useMemo(() => [...(rules||[])].sort((a,b) => (b.triggered||0) - (a.triggered||0)), [rules]);
+  const maxTriggered = sortedByTriggered[0]?.triggered || 1;
+  const byType = useMemo(() => {
+    const acc = {};
+    (rules||[]).forEach(r => {
+      const t = r.fraud_type || r.type || 'Autre';
+      if (!acc[t]) acc[t] = { count: 0, triggered: 0, blocked: 0 };
+      acc[t].count++; acc[t].triggered += r.triggered||0; acc[t].blocked += r.blocked||0;
+    });
+    return acc;
+  }, [rules]);
+  const inactiveOrZero = useMemo(() => (rules||[]).filter(r => !r.active || (r.triggered||0) === 0), [rules]);
+
   // ── Vue Builder ──────────────────────────────────────────────────────
   if (showBuilder) return (
     <div style={{ padding: "28px 30px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
@@ -393,6 +407,113 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
         ))}
       </div>
 
+
+      {/* Toggle Liste / Performance */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {[{ key: "list", label: "Liste des règles" }, { key: "performance", label: "Performance des règles" }].map(({ key, label }) => (
+          <button key={key} onClick={() => setView(key)}
+            style={{ padding: "8px 16px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+              background: view === key ? C.navy : "transparent",
+              color: view === key ? "#fff" : C.textL,
+              border: `1px solid ${view === key ? C.navy : C.mutedL}` }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Vue Performance ─────────────────────────────────────────────── */}
+      {view === "performance" && (
+        <div>
+          {/* Section 1 — Classement */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.navy, marginBottom: 14 }}>Classement des règles les plus efficaces</div>
+            <Card style={{ padding: 0, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 140px 110px 80px 90px 80px 70px", padding: "8px 16px", background: C.bg, borderBottom: `1px solid ${C.mutedL}`, fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase" }}>
+                <span>Rang</span><span>Nom</span><span>Type fraude</span><span>Déclenchements</span><span>Bloqués</span><span>Taux blocage</span><span>Sévérité</span><span>Statut</span>
+              </div>
+              {sortedByTriggered.map((rule, idx) => {
+                const sc = sevColor(rule.severity);
+                const pct = Math.round((rule.blocked||0) / Math.max(rule.triggered||1, 1) * 100);
+                const barW = Math.round((rule.triggered||0) / maxTriggered * 100);
+                const medal = idx < 3 ? ["🥇","🥈","🥉"][idx] : null;
+                return (
+                  <div key={rule.id} style={{ display: "grid", gridTemplateColumns: "40px 1fr 140px 110px 80px 90px 80px 70px", padding: "10px 16px", borderBottom: `1px solid ${C.mutedL}`, alignItems: "center", background: idx < 3 ? `${C.sky}06` : "transparent" }}>
+                    <span style={{ fontSize: 14 }}>{medal || <span style={{ fontSize: 12, color: C.muted, fontWeight: 700 }}>#{idx+1}</span>}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{rule.name}</span>
+                    <span style={{ fontSize: 11, color: fraudCatColor(rule.type) }}>{rule.type}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: C.sky, marginBottom: 3 }}>{(rule.triggered||0).toLocaleString()}</div>
+                      <div style={{ height: 4, borderRadius: 4, background: C.mutedL, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${barW}%`, background: C.sky, borderRadius: 4 }} />
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: C.danger }}>{(rule.blocked||0).toLocaleString()}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: pct >= 80 ? C.success : pct >= 50 ? C.warning : C.muted }}>{pct}%</span>
+                    <Badge label={sevLabel(rule.severity)} color={sc} small />
+                    <Badge label={rule.active ? "Actif" : "Inactif"} color={rule.active ? C.success : C.muted} small />
+                  </div>
+                );
+              })}
+              {sortedByTriggered.length === 0 && <div style={{ padding: "32px", textAlign: "center", color: C.muted, fontSize: 13 }}>Aucune règle</div>}
+            </Card>
+          </div>
+
+          {/* Section 2 — Distribution par type de fraude */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.navy, marginBottom: 14 }}>Distribution par type de fraude</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+              {Object.entries(byType).sort((a,b) => b[1].triggered - a[1].triggered).map(([type, stats]) => {
+                const fc = fraudCatColor(type);
+                const fi = fraudCatIcon(type);
+                const blocRate = Math.round(stats.blocked / Math.max(stats.triggered, 1) * 100);
+                return (
+                  <Card key={type} style={{ padding: "16px 18px", borderTop: `3px solid ${fc}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 18 }}>{fi}</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: fc }}>{type}</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, textAlign: "center" }}>
+                      <div><div style={{ fontSize: 18, fontWeight: 900, color: C.navy }}>{stats.count}</div><div style={{ fontSize: 10, color: C.muted }}>règles</div></div>
+                      <div><div style={{ fontSize: 18, fontWeight: 900, color: C.sky }}>{stats.triggered.toLocaleString()}</div><div style={{ fontSize: 10, color: C.muted }}>déclench.</div></div>
+                      <div><div style={{ fontSize: 18, fontWeight: 900, color: C.danger }}>{blocRate}%</div><div style={{ fontSize: 10, color: C.muted }}>bloqués</div></div>
+                    </div>
+                  </Card>
+                );
+              })}
+              {Object.keys(byType).length === 0 && <div style={{ color: C.muted, fontSize: 13 }}>Aucune donnée</div>}
+            </div>
+          </div>
+
+          {/* Section 3 — Règles inactives ou sans déclenchement */}
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.navy, marginBottom: 14 }}>
+              Règles inactives ou sans déclenchement
+              <span style={{ marginLeft: 8, fontSize: 11, background: "#fef3cd", color: C.warning, borderRadius: 8, padding: "2px 8px", fontWeight: 700 }}>{inactiveOrZero.length}</span>
+            </div>
+            {inactiveOrZero.length === 0
+              ? <Card style={{ padding: "24px", textAlign: "center", color: C.success, fontWeight: 700 }}>Toutes les règles actives ont des déclenchements.</Card>
+              : <Card style={{ padding: 0, overflow: "hidden" }}>
+                {inactiveOrZero.map(rule => (
+                  <div key={rule.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 16px", borderBottom: `1px solid ${C.mutedL}`, opacity: 0.75 }}>
+                    <span style={{ fontSize: 16 }}>{fraudCatIcon(rule.type)}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: C.navy }}>{rule.name}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{rule.type} · {rule.date}</div>
+                    </div>
+                    <span style={{ fontSize: 11, background: (!rule.active ? C.mutedL : "#fef3cd"), color: (!rule.active ? C.muted : C.warning), borderRadius: 8, padding: "2px 8px", fontWeight: 700 }}>{!rule.active ? "Inactive" : "0 déclenchement"}</span>
+                    <div style={{ fontSize: 11, color: C.muted, maxWidth: 220, textAlign: "right" }}>
+                      {!rule.active ? "Activez cette règle pour qu'elle commence à détecter." : "Vérifiez les conditions ou les données CDR entrantes."}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            }
+          </div>
+        </div>
+      )}
+
+      {/* ── Vue Liste ─────────────────────────────────────────────────── */}
+      {view === "list" && <>
       <FraudTypeDropdown value={filterType} onChange={setFilterType} rules={rules} />
 
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
@@ -450,6 +571,7 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
           </Card>
         )}
       </div>
+      </>}
     </div>
   );
 }
