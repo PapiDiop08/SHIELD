@@ -120,6 +120,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
     // Créer alerte si règle déclenchée
     if (topRule) {
       const alertRow = {
+        id: crypto.randomUUID(),
         msisdn: cdr.msisdn_a, imsi: cdr.imsi || null, imei: cdr.imei || null,
         cell_id: cdr.cell_id || null,
         fraud_type: topRule.name,
