@@ -192,7 +192,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
       };
       supabase.from('alerts').insert(alertRow).select().then(({ data, error }) => {
         if (error) console.error('Alert insert error:', error);
-        if (data?.[0] && addAlert) addAlert(data[0]);
+        // Subscription Realtime gère l'affichage — pas d'appel addAlert direct
       });
 
       // ── Auto-blocage : dès que la règle dit "block" → écriture dans blockings

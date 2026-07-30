@@ -353,7 +353,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
                 <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Liste cible</p>
                 <div style={{ display:"flex",gap:6,marginBottom:14,flexWrap:"wrap" }}>
                   {["blacklist","whitelist","watchlist","greylist"].map(tab=>(
-                    <button key={tab} onClick={()=>setImportType(prev=>{ setActiveTab(tab); return prev; })} style={{ padding:"5px 10px",background:activeTab===tab?(TAB_COLOR[tab]+"18"):C.bg,border:`1px solid ${activeTab===tab?TAB_COLOR[tab]:C.mutedL}`,borderRadius:8,color:activeTab===tab?TAB_COLOR[tab]:C.textL,cursor:"pointer",fontSize:11,fontWeight:activeTab===tab?700:400 }} onClick={()=>setActiveTab(tab)}>{TAB_LABEL[tab]}</button>
+                    <button key={tab} onClick={()=>setActiveTab(tab)} style={{ padding:"5px 10px",background:activeTab===tab?(TAB_COLOR[tab]+"18"):C.bg,border:`1px solid ${activeTab===tab?TAB_COLOR[tab]:C.mutedL}`,borderRadius:8,color:activeTab===tab?TAB_COLOR[tab]:C.textL,cursor:"pointer",fontSize:11,fontWeight:activeTab===tab?700:400 }}>{TAB_LABEL[tab]}</button>
                   ))}
                 </div>
                 {/* Type */}

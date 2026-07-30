@@ -408,6 +408,7 @@ export function useComplaints(operatorFilter) {
 export async function saveLogToSupabase(log) {
   try {
     await supabase.from('audit_logs').insert([{
+      user_id: log.userId || log.user_id || null,
       user_name: log.userName || 'System',
       user_role: log.userRole || 'system',
       action: log.action,

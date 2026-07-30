@@ -179,7 +179,7 @@ function AppInner() {
       {page === "ai"         && <AIAnalysis {...sharedProps} />}
       {page === "billing"       && <Billing      {...sharedProps} />}
       {page === "distributors"  && <Distributors {...sharedProps} />}
-      {page === "simulator"     && <CdrSimulator rules={rules} addAlert={(a) => setAlerts(p => [a,...p])} />}
+      {page === "simulator"     && <CdrSimulator rules={rules} currentOperator={currentOperator} />}
     </Layout>
   );
 }
