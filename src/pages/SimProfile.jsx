@@ -72,34 +72,38 @@ function computeScores(view, cellMoves, swapCount) {
   const shorts  = view.short_calls    || 0;
   const intl    = view.intl_calls     || 0;
   const premium = view.premium_calls  || 0;
-  const cells   = view.unique_cells   || cellMoves.length || 1;
+  const cells   = view.unique_cells   || cellMoves.length || 0;
   const dur     = view.avg_duration_sec || 0;
   const swaps   = swapCount || view.sim_swap_count || 0;
 
+  // Pas de CDR → aucun score CDR (sauf ATO via swap)
+  if (n === 0) {
+    const ato = swaps > 0 ? Math.min(100, Math.round(50 + Math.min(40, swaps * 20))) : 0;
+    return { score_simbox: 0, score_wangiri: 0, score_irsf: 0, score_ato: ato };
+  }
+
   // SIM Box : 1 seule antenne + volume élevé + durée courte-moyenne
   const simbox = Math.min(100, Math.round(
-    (cells === 1 ? 50 : cells <= 2 ? 20 : 0) +
+    (cells === 1 ? 50 : cells === 2 ? 20 : 0) +
     Math.min(30, (n / 150) * 30) +
     (dur >= 10 && dur <= 60 ? 20 : dur < 10 && dur > 0 ? 10 : 0)
   ));
 
   // Wangiri : beaucoup de courts + premium
-  const wangiri = n > 0 ? Math.min(100, Math.round(
+  const wangiri = Math.min(100, Math.round(
     (shorts / n) * 60 +
-    (premium / Math.max(n, 1)) * 40
-  )) : 0;
+    (premium / n) * 40
+  ));
 
   // IRSF : international + premium + longue durée
-  const irsf = n > 0 ? Math.min(100, Math.round(
+  const irsf = Math.min(100, Math.round(
     (intl / n) * 35 +
-    (premium / Math.max(n, 1)) * 35 +
+    (premium / n) * 35 +
     (dur > 180 ? 30 : dur > 60 ? 15 : 0)
-  )) : 0;
+  ));
 
   // ATO : SIM swap + comportement changé
-  const ato = Math.min(100, Math.round(
-    swaps > 0 ? 50 + Math.min(40, swaps * 20) : 0
-  ));
+  const ato = swaps > 0 ? Math.min(100, Math.round(50 + Math.min(40, swaps * 20))) : 0;
 
   return { score_simbox: simbox, score_wangiri: wangiri, score_irsf: irsf, score_ato: ato };
 }
@@ -403,7 +407,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
             <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8,marginBottom:16 }}>
               <KPI label="Appels sortants"   value={profile.call_out_count??0}    color={C.orange} />
               <KPI label="Appels entrants"   value={profile.call_in_count??0}      color={C.success} />
-              <KPI label="Durée moy. (s)"   value={Math.round(profile.avg_duration_out||0)} color={profile.avg_duration_out<3?C.danger:C.sky} sub={profile.avg_duration_out<3?"⚠️ Wangiri possible":undefined} />
+              <KPI label="Durée moy. (s)"   value={Math.round(profile.avg_duration_out||0)} color={profile.avg_duration_out<3?C.danger:C.sky} sub={profile.avg_duration_out>0&&profile.avg_duration_out<3?"⚠️ Wangiri possible":undefined} />
               <KPI label="SMS sortants"      value={profile.sms_out_count??0}      color={C.purple} />
               <KPI label="Vélocité/min"      value={(profile.velocity_calls_per_min||0).toFixed(2)} color={profile.velocity_calls_per_min>10?C.danger:C.navy} />
               <KPI label="Appels intl."      value={profile.call_intl_out_count??0} color={profile.call_intl_out_count>50?C.warning:C.navy} />
