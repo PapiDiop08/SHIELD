@@ -411,7 +411,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
               <KPI label="SMS sortants"      value={profile.sms_out_count??0}      color={C.purple} />
               <KPI label="Vélocité/min"      value={(profile.velocity_calls_per_min||0).toFixed(2)} color={profile.velocity_calls_per_min>10?C.danger:C.navy} />
               <KPI label="Appels intl."      value={profile.call_intl_out_count??0} color={profile.call_intl_out_count>50?C.warning:C.navy} />
-              <KPI label="Antennes distinctes" value={cellMovements.length}        color={cellMovements.length===1?C.danger:C.teal} sub={cellMovements.length===1?"⚠️ SIM Box possible":undefined} />
+              <KPI label="Antennes distinctes" value={cellMovements.length}        color={cellMovements.length===1&&(profile.call_out_count||0)>=10?C.danger:C.teal} sub={cellMovements.length===1&&(profile.call_out_count||0)>=10?"⚠️ SIM Box possible":undefined} />
               <KPI label="SIM Swaps"         value={simSwaps.length}               color={simSwaps.length>0?C.danger:C.success} />
               <KPI label="Alertes liées"     value={effectiveAlerts.length}           color={effectiveAlerts.length>0?C.danger:C.success} />
             </div>
