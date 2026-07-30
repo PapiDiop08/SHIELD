@@ -23,6 +23,7 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
       { key: "cells",         label: "Antennes",         icon: "operators" },
       { key: "complaints",    label: "Plaintes",         icon: "complaints" },
       { key: "distributors",  label: "Distributeurs SIM", icon: "agents" },
+      { key: "simulator",     label: "Simulateur CDR",    icon: "ai" },
     ]},
     { label: "Analyse", items: [
       { key: "reports", label: "Rapports",   icon: "reports" },

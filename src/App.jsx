@@ -21,6 +21,7 @@ import Billing from "./pages/Billing.jsx";
 import Distributors from "./pages/Distributors.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
 import SimProfile from "./pages/SimProfile.jsx";
+import CdrSimulator from "./pages/CdrSimulator.jsx";
 
 import {
   useAlerts, useRules, useBlockings, useOperators,
@@ -176,6 +177,7 @@ function AppInner() {
       {page === "ai"         && <AIAnalysis {...sharedProps} />}
       {page === "billing"       && <Billing      {...sharedProps} />}
       {page === "distributors"  && <Distributors {...sharedProps} />}
+      {page === "simulator"     && <CdrSimulator rules={rules} addAlert={(a) => setAlerts(p => [a,...p])} />}
     </Layout>
   );
 }
