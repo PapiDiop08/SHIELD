@@ -26,8 +26,9 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
       { key: "simulator",     label: "Simulateur CDR",    icon: "ai" },
     ]},
     { label: "Analyse", items: [
-      { key: "reports", label: "Rapports",   icon: "reports" },
-      { key: "logs",    label: "Audit Log",  icon: "logs" },
+      { key: "reports",      label: "Rapports",      icon: "reports" },
+      { key: "rules_review", label: "Perf. Règles",  icon: "scoring" },
+      { key: "logs",         label: "Audit Log",     icon: "logs" },
     ]},
     { label: "Admin", show: can("manageUsers") || can("manageUDF") || can("manageSettings") || isGFM(), items: [
       ...(can("manageUsers") ? [{ key: "admin",     label: "Utilisateurs", icon: "admin" }] : []),

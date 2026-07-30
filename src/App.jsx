@@ -22,6 +22,7 @@ import Distributors from "./pages/Distributors.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
 import SimProfile from "./pages/SimProfile.jsx";
 import CdrSimulator from "./pages/CdrSimulator.jsx";
+import RulesReview from "./pages/RulesReview.jsx";
 
 import {
   useAlerts, useRules, useBlockings, useOperators,
@@ -180,6 +181,7 @@ function AppInner() {
       {page === "billing"       && <Billing      {...sharedProps} />}
       {page === "distributors"  && <Distributors {...sharedProps} />}
       {page === "simulator"     && <CdrSimulator rules={rules} currentOperator={currentOperator} />}
+      {page === "rules_review"  && <RulesReview rules={rules} />}
     </Layout>
   );
 }
