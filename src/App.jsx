@@ -61,7 +61,7 @@ function LoadingScreen() {
 }
 
 function AppInner() {
-  const { currentUser, addLog, isGFM, authLoading } = useAuth();
+  const { currentUser, addLog, isGFM, authLoading, logs } = useAuth();
   const [page, setPage] = useState("dashboard");
   const [simProfile, setSimProfile] = useState(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
@@ -170,7 +170,7 @@ function AppInner() {
       {page === "cells"      && <Cells      {...sharedProps} />}
       {page === "complaints" && <Complaints {...sharedProps} />}
       {page === "reports"    && <Reports    {...sharedProps} cases={[]} />}
-      {page === "logs"       && <Logs       addLog={addLogEnhanced} users={users} logs={[]} />}
+      {page === "logs"       && <Logs       addLog={addLogEnhanced} users={users} logs={logs || []} />}
       {page === "admin"      && <Admin      {...sharedProps} />}
       {page === "udf"        && <UDFManager addLog={addLogEnhanced} />}
       {page === "settings"   && <Settings   {...sharedProps} />}

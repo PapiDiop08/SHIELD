@@ -183,11 +183,15 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
       const alertRow = {
         id: crypto.randomUUID(),
         msisdn: cdr.msisdn_a,
+        type: profile.type || fraudType,
         fraud_type: fraudType,
         status: topRule.action==='block' ? 'blocked' : 'open',
         score: Math.min(100, 60 + triggered.length * 15),
         severity: profile.type === 'irsf' ? 'critical' : topRule.severity || 'high',
         reason: FRAUD_REASONS[profile.type] || `Règle "${topRule.name}"`,
+        date: new Date().toISOString().slice(0, 10),
+        operator: currentOperator?.name || 'AAR Telco',
+        operator_id: currentOperator?.id || null,
         created_at: new Date().toISOString(),
       };
       supabase.from('alerts').insert(alertRow).select().then(({ data, error }) => {
