@@ -121,8 +121,8 @@ export default function CdrSimulator({ rules = [], addAlert }) {
     if (topRule) {
       const alertRow = {
         id: crypto.randomUUID(),
-        msisdn: cdr.msisdn_a, imsi: cdr.imsi || null, imei: cdr.imei || null,
-        cell_id: cdr.cell_id || null,
+        msisdn: cdr.msisdn_a,
+        imsi: cdr.imsi || null,
         fraud_type: topRule.name,
         status: topRule.action==='block' ? 'blocked' : 'open',
         score: Math.min(100, 60 + triggered.length * 15),
