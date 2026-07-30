@@ -120,17 +120,17 @@ export default function CdrSimulator({ rules = [], addAlert }) {
     // Créer alerte si règle déclenchée
     if (topRule) {
       const alertRow = {
-        msisdn: cdr.msisdn_a, imsi: cdr.imsi, imei: cdr.imei,
-        fraud_type: topRule.name, type: profile.type?.toUpperCase() || 'DETECTION',
+        msisdn: cdr.msisdn_a, imsi: cdr.imsi || null, imei: cdr.imei || null,
+        cell_id: cdr.cell_id || null,
+        fraud_type: topRule.name,
         status: topRule.action==='block' ? 'blocked' : 'open',
         score: Math.min(100, 60 + triggered.length * 15),
         severity: topRule.severity || 'high',
         reason: `Règle "${topRule.name}" — ${topRule.description||''}`,
-        date: new Date().toISOString(), created_at: new Date().toISOString(),
-        amount: 0, tx_count_24h: result.metrics.call_out_count,
-        velocity_24h: result.metrics.call_out_count,
+        created_at: new Date().toISOString(),
       };
-      supabase.from('alerts').insert(alertRow).select().then(({ data }) => {
+      supabase.from('alerts').insert(alertRow).select().then(({ data, error }) => {
+        if (error) console.error('Alert insert error:', error);
         if (data?.[0] && addAlert) addAlert(data[0]);
       });
     }
