@@ -20,12 +20,16 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
 
   const filtered = useMemo(() => {
     let list = [...blockings];
-    if (search) list = list.filter(b => b.msisdn.includes(search) || b.reason.toLowerCase().includes(search.toLowerCase()) || (b.imei||"").includes(search));
+    if (search) list = list.filter(b => b.msisdn?.includes(search) || b.reason?.toLowerCase().includes(search.toLowerCase()) || (b.imei||"").includes(search));
     if (filterOp !== "all") list = list.filter(b => b.operator === filterOp);
     if (filterSource !== "all") list = list.filter(b => b.source === filterSource);
     if (filterActive === "active") list = list.filter(b => b.active);
     if (filterActive === "inactive") list = list.filter(b => !b.active);
-    return list.sort((a,b) => b.date.localeCompare(a.date));
+    return list.sort((a, b) => {
+      const da = String(a?.date || a?.created_at || "");
+      const db = String(b?.date || b?.created_at || "");
+      return db.localeCompare(da);
+    });
   }, [blockings, search, filterOp, filterSource, filterActive]);
 
   const today = new Date().toISOString().slice(0,10);
@@ -129,10 +133,10 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
                       <div style={{fontSize:12,color:C.textL,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.reason}</div>
                       {b.interOpSource && <div style={{fontSize:10,color:C.purple}}>via {b.interOpSource}</div>}
                     </td>
-                    <td style={{padding:"10px 12px"}}><Badge label={sourceLabel[b.source]||b.source} color={b.source==="inter_operator"?C.purple:b.source==="shield_auto"?C.sky:C.teal} small /></td>
+                    <td style={{padding:"10px 12px"}}><Badge label={sourceLabel[b.source]||b.source||"—"} color={b.source==="inter_operator"?C.purple:b.source==="shield_auto"?C.sky:C.teal} small /></td>
                     <td style={{padding:"10px 12px"}}>
                       {blocker
-                        ? <div style={{display:"flex",alignItems:"center",gap:6}}><Avatar user={blocker} size={20}/><span style={{fontSize:11,color:C.textL}}>{blocker.name.split(" ")[0]}</span></div>
+                        ? <div style={{display:"flex",alignItems:"center",gap:6}}><Avatar user={blocker} size={20}/><span style={{fontSize:11,color:C.textL}}>{(blocker.name||"Auto").split(" ")[0]}</span></div>
                         : <span style={{fontSize:11,color:C.muted}}>{b.blockerName||"Auto"}</span>}
                     </td>
                     <td style={{padding:"10px 12px",fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{b.date?.slice(0,10)}</td>

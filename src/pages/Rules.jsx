@@ -285,13 +285,13 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
 
   const filtered = useMemo(() => {
     let list = [...rules];
-    if (search) list = list.filter(r => r.name.toLowerCase().includes(search.toLowerCase()) || r.type.toLowerCase().includes(search.toLowerCase()));
+    if (search) list = list.filter(r => r.name?.toLowerCase().includes(search.toLowerCase()) || r.type?.toLowerCase().includes(search.toLowerCase()));
     if (filterType) list = list.filter(r => r.type === filterType);
     if (filterSev !== "all") list = list.filter(r => r.severity === filterSev);
     if (filterActive === "active") list = list.filter(r => r.active);
     if (filterActive === "inactive") list = list.filter(r => !r.active);
     if (filterAction !== "all") list = list.filter(r => r.action === filterAction);
-    list.sort((a, b) => sortBy === "triggered" ? b.triggered - a.triggered : sortBy === "name" ? a.name.localeCompare(b.name) : (b.date || "").localeCompare(a.date || ""));
+    list.sort((a, b) => sortBy === "triggered" ? (b.triggered||0) - (a.triggered||0) : sortBy === "name" ? (a.name||"").localeCompare(b.name||"") : (b.date||"").localeCompare(a.date||""));
     return list;
   }, [rules, search, filterType, filterSev, filterActive, filterAction, sortBy]);
 
