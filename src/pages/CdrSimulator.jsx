@@ -5,7 +5,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { C } from "../theme.js";
 import { Card, Btn } from "../components.jsx";
 import { MsisdnState, processCDR } from "../engine/ruleEngine.js";
-import { createBatchSequence, FRAUD_PROFILES, LEGIT_PROFILES } from "../engine/cdrGenerator.js";
+import { createBatchSequence, prewarmStates, FRAUD_PROFILES, LEGIT_PROFILES } from "../engine/cdrGenerator.js";
 import { supabase } from "../supabase.js";
 
 const fmtTime = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
@@ -248,6 +248,10 @@ export default function CdrSimulator({ rules = [], addAlert }) {
     setBatchProgress(0);
     setBatchLog([]);
     const log = (msg) => setBatchLog(p => [...p, msg]);
+
+    // 0. Pré-chauffe — 60 CDR synthétiques par MSISDN fraud (sans DB)
+    log("🔥 Pré-chauffe état MSISDN (60 appels/profil)...");
+    prewarmStates(stateMap.current, MsisdnState, 60);
 
     // 1. CDR — 300 appels
     log("📡 Génération 300 CDR voix...");

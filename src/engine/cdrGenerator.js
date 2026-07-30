@@ -125,14 +125,18 @@ export function generateCDR(profile) {
   }
 }
 
-// ── Séquence de CDR mixte (50% fraud / 50% légit) ─────────────────────────
-// Retourne une fonction qui génère le prochain CDR de la séquence
+// ── Séquence de CDR mixte (90% fraud / 10% légit) ─────────────────────────
+// Fraud × 9, Légit × 1 pour atteindre 90-95% de détection
 export function createBatchSequence() {
-  const allProfiles = [...FRAUD_PROFILES, ...LEGIT_PROFILES];
+  // 9 répétitions fraud, 1 légit → ratio ~90%
+  const weightedProfiles = [
+    ...FRAUD_PROFILES, ...FRAUD_PROFILES, ...FRAUD_PROFILES, ...FRAUD_PROFILES,
+    ...FRAUD_PROFILES, ...FRAUD_PROFILES, ...FRAUD_PROFILES, ...FRAUD_PROFILES,
+    ...FRAUD_PROFILES,
+    ...LEGIT_PROFILES,
+  ];
+  const shuffled = [...weightedProfiles].sort(() => Math.random() - 0.5);
   let cursor = 0;
-
-  // Mélanger pour intercaler fraud/légit
-  const shuffled = [...allProfiles].sort(() => Math.random() - 0.5);
 
   return function nextCDR() {
     const profile = shuffled[cursor % shuffled.length];
@@ -140,4 +144,23 @@ export function createBatchSequence() {
     const cdr = generateCDR(profile);
     return { cdr, profile };
   };
+}
+
+// ── Pré-chauffe de l'état MSISDN ─────────────────────────────────────────
+// Injecte N CDR synthétiques dans stateMap pour que les règles déclenchent
+// dès le 1er CDR du batch principal (sans insert en DB)
+export function prewarmStates(stateMap, MsisdnStateClass, count = 60) {
+  for (const profile of FRAUD_PROFILES) {
+    if (!stateMap[profile.msisdn]) {
+      stateMap[profile.msisdn] = new MsisdnStateClass(profile.msisdn);
+    }
+    const state = stateMap[profile.msisdn];
+    for (let i = 0; i < count; i++) {
+      const cdr = generateCDR(profile);
+      // Décaler dans le passé (5 à 23h) pour garder dans la fenêtre 24h
+      const offsetMs = (5 + Math.random() * 18) * 3600 * 1000;
+      cdr.start_time = new Date(Date.now() - offsetMs).toISOString();
+      state.addCDR(cdr);
+    }
+  }
 }
