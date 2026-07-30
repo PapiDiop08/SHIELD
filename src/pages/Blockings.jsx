@@ -22,7 +22,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
     try {
       let list = [...(blockings || [])];
       if (search) list = list.filter(b => b.msisdn?.includes(search) || b.reason?.toLowerCase().includes(search.toLowerCase()) || (b.imei||"").includes(search));
-      if (filterOp !== "all") list = list.filter(b => b.operator === filterOp);
+      if (filterOp !== "all") list = list.filter(b => (b.operator || '—') === filterOp);
       if (filterSource !== "all") list = list.filter(b => b.source === filterSource);
       if (filterActive === "active") list = list.filter(b => b.active);
       if (filterActive === "inactive") list = list.filter(b => !b.active);

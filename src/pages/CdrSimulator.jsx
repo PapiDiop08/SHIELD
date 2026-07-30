@@ -134,7 +134,7 @@ function StatsPanel({ stats }) {
   );
 }
 
-export default function CdrSimulator({ rules = [], addAlert }) {
+export default function CdrSimulator({ rules = [], addAlert, currentOperator }) {
   const [running,   setRunning]   = useState(false);
   const [feed,      setFeed]      = useState([]);
   const [stats,     setStats]     = useState({ total:0, legit:0, alerts:0, blocked:0, simbox:0, wangiri:0, irsf:0, ato:0 });
@@ -204,6 +204,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
           source: 'shield_auto',
           active: true,
           operator: 'AAR Telco',
+          operator_id: currentOperator?.id || null,
           auto_flagged: [topRule.name],
           created_at: new Date().toISOString(),
         };
@@ -298,6 +299,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
           raw: tpl.raw,
           status: ['open','investigating','closed'][Math.floor(Math.random()*3)],
           auto_blocked: Math.random() > 0.7,
+          operator_id: currentOperator?.id || null,
           created_at: new Date(Date.now() - Math.random() * 7 * 86400000).toISOString(),
         });
       }

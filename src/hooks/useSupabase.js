@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../supabase.js';
 import { MOCK_OPERATORS, MOCK_ALERTS } from '../mockData.js';
 
@@ -262,12 +262,40 @@ export function useBlockings(operatorFilter) {
     setLoading(false);
   }, [operatorFilter]);
 
+  const toBlocking = useCallback((b) => ({
+    id: b.id, msisdn: b.msisdn, imei: b.imei || '', imsi: b.imsi || '',
+    cellId: b.cell_id || '', operator: b.operator || b.operator_id || '—',
+    operatorId: b.operator_id, blockedBy: b.blocked_by,
+    blockerName: "AAR", reason: b.reason,
+    source: b.source, interOpSource: b.inter_op_source,
+    notes: b.notes, active: b.active, date: b.blocked_at,
+    created_at: b.created_at,
+    autoFlagged: b.auto_flagged || [],
+  }), []);
+
   useEffect(() => { fetch(); }, [fetch]);
+
+  useEffect(() => {
+    const ch = supabase.channel('blockings-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'blockings' }, payload => {
+        const b = payload.new;
+        setBlockingsState(p => [toBlocking(b), ...p.filter(x => x.id !== b.id)]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'blockings' }, payload => {
+        const b = payload.new;
+        setBlockingsState(p => p.map(x => x.id === b.id ? toBlocking(b) : x));
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [toBlocking]);
+
   const setBlockings = useCallback((u) => setBlockingsState(u), []);
 
   const createBlocking = useCallback(async (blocking, operatorId) => {
     const { data, error } = await supabase.from('blockings').insert([{
-      operator: operatorId, msisdn: blocking.msisdn,
+      operator: blocking.operator || 'AAR Telco',
+      operator_id: blocking.operator_id || operatorId || null,
+      msisdn: blocking.msisdn,
       reason: blocking.reason,
       source: blocking.source || 'analyst',
       inter_op_source: blocking.interOpSource || null,
@@ -504,9 +532,9 @@ export function useDashboardStats(operatorId = null) {
       // Alertes récentes
       const { data: recent } = await opFilter(
         supabase.from('alerts').select(`
-          id, msisdn, fraud_type, status, risk_score, detected_at,
+          id, msisdn, fraud_type, status, risk_score, created_at,
           triggered_rule_name
-        `).order('detected_at', { ascending: false }).limit(5)
+        `).order('created_at', { ascending: false }).limit(5)
       );
       setRecentAlerts(recent || []);
 
@@ -738,15 +766,15 @@ export function useReportsStats(operatorId = null, period = 30) {
       // Totaux
       const { count: totalAlerts } = await opFilter(
         supabase.from('alerts').select('*', { count: 'exact', head: true })
-          .gte('detected_at', since.toISOString())
+          .gte('created_at', since.toISOString())
       );
       const { count: blocked } = await opFilter(
         supabase.from('alerts').select('*', { count: 'exact', head: true })
-          .eq('status', 'blocked').gte('detected_at', since.toISOString())
+          .eq('status', 'blocked').gte('created_at', since.toISOString())
       );
       const { count: falsePositives } = await opFilter(
         supabase.from('alerts').select('*', { count: 'exact', head: true })
-          .eq('status', 'false_positive').gte('detected_at', since.toISOString())
+          .eq('status', 'false_positive').gte('created_at', since.toISOString())
       );
 
       setStats({
@@ -761,7 +789,7 @@ export function useReportsStats(operatorId = null, period = 30) {
       // Par type
       const { data: alertsRaw } = await opFilter(
         supabase.from('alerts').select('fraud_type, status, risk_score')
-          .gte('detected_at', since.toISOString())
+          .gte('created_at', since.toISOString())
       );
       if (alertsRaw) {
         const typeMap = {};
@@ -780,14 +808,14 @@ export function useReportsStats(operatorId = null, period = 30) {
 
       // Tendance par semaine
       const { data: trendRaw } = await opFilter(
-        supabase.from('alerts').select('detected_at, status')
-          .gte('detected_at', since.toISOString())
-          .order('detected_at', { ascending: true })
+        supabase.from('alerts').select('created_at, status')
+          .gte('created_at', since.toISOString())
+          .order('created_at', { ascending: true })
       );
       if (trendRaw) {
         const weekMap = {};
         trendRaw.forEach(a => {
-          const d = new Date(a.detected_at);
+          const d = new Date(a.created_at);
           const weekStart = new Date(d);
           weekStart.setDate(d.getDate() - d.getDay());
           const key = weekStart.toISOString().slice(0, 10);
@@ -832,7 +860,7 @@ export function useBillingStats() {
         const { count: alerts } = await supabase
           .from('alerts').select('*', { count: 'exact', head: true })
           .eq('operator_id', op.id)
-          .gte('detected_at', firstDay.toISOString());
+          .gte('created_at', firstDay.toISOString());
 
         const { count: blockings } = await supabase
           .from('blockings').select('*', { count: 'exact', head: true })
@@ -885,6 +913,8 @@ export function useAuditLogs(filters = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const filtersStr = useMemo(() => JSON.stringify(filters), [filters]);
+
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
@@ -907,7 +937,7 @@ export function useAuditLogs(filters = {}) {
     } finally {
       setLoading(false);
     }
-  }, [JSON.stringify(filters)]);
+  }, [filtersStr]);
 
   useEffect(() => { fetch(); }, [fetch]);
   return { logs, loading, error, refetch: fetch };

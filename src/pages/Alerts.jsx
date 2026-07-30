@@ -175,7 +175,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
                       style={{ padding: "12px 16px", cursor: opt.disabled || opt.rows.length === 0 ? "not-allowed" : "pointer", opacity: opt.disabled || opt.rows.length === 0 ? 0.4 : 1, borderBottom: `1px solid ${C.mutedL}`, fontSize: 13, color: C.navy, fontWeight: 600 }}
                       onMouseOver={e => { if (!opt.disabled) e.currentTarget.style.background = C.bg; }}
                       onMouseOut={e => e.currentTarget.style.background = C.white}>
-                      PDF {opt.label}
+                      {opt.label}
                     </div>
                   ))}
                   <div style={{ padding: "10px 16px", fontSize: 11, color: C.muted, background: C.bg }}>
