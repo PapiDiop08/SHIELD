@@ -195,6 +195,23 @@ export default function CdrSimulator({ rules = [], addAlert }) {
         if (error) console.error('Alert insert error:', error);
         if (data?.[0] && addAlert) addAlert(data[0]);
       });
+
+      // ── Auto-blocage : dès que la règle dit "block" → écriture dans blockings
+      if (topRule.action === 'block') {
+        const blockRow = {
+          id: crypto.randomUUID(),
+          msisdn: cdr.msisdn_a,
+          reason: FRAUD_REASONS[profile.type] || `Règle "${topRule.name}" — score élevé`,
+          source: 'shield_auto',
+          active: true,
+          operator: 'AAR Telco',
+          auto_flagged: [topRule.name],
+          created_at: new Date().toISOString(),
+        };
+        supabase.from('blockings').insert(blockRow).then(({ error: bErr }) => {
+          if (bErr && !bErr.message?.includes('unique')) console.error('Blocking insert error:', bErr);
+        });
+      }
     }
 
     // Feed + stats
