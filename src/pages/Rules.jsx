@@ -274,6 +274,7 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
   const { can, currentUser } = useAuth();
   const { fields: udfFields, loading: udfLoading } = useUDFFields();
 
+  const [view, setView]               = useState("list");
   const [search, setSearch]           = useState("");
   const [filterType, setFilterType]   = useState(null);
   const [filterSev, setFilterSev]     = useState("all");

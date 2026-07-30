@@ -19,16 +19,188 @@ const riskLabel = (r) => ({ critical: "Critique", high: "Élevé", medium: "Moye
 const typeLabel = (t) => t === "individual" ? "Individuel" : t === "small_business" ? "Petite entreprise" : t || "—";
 const typeColor = (t) => t === "individual" ? C.sky : t === "small_business" ? C.purple : C.muted;
 
+// ── Generate mock SIMs for a distributor ─────────────────────────────────────
+function generateSims(distributor) {
+  const count = distributor.sims_sold || Math.floor(Math.random() * 50 + 10);
+  return Array.from({ length: count }, (_, i) => ({
+    id: `SIM-${(distributor.id?.slice(0, 4) || "D001")}-${String(i + 1).padStart(3, "0")}`,
+    msisdn: `+221 7${Math.floor(Math.random() * 9 + 1)} ${String(Math.floor(Math.random() * 9000000 + 1000000)).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/, "$1 $2 $3 $4")}`,
+    status: i < (distributor.fraud_sims || 0) ? "blocked" : Math.random() > 0.85 ? "flagged" : "active",
+    activatedAt: new Date(Date.now() - Math.random() * 90 * 24 * 3600 * 1000).toLocaleDateString("fr-FR"),
+    calls: Math.floor(Math.random() * 500),
+    riskScore: i < (distributor.fraud_sims || 0) ? Math.floor(Math.random() * 30 + 70) : Math.floor(Math.random() * 40),
+  }));
+}
+
+const simStatusColor = (s) => s === "blocked" ? C.danger : s === "flagged" ? C.warning : C.success;
+const simStatusLabel = (s) => s === "blocked" ? "Bloquée" : s === "flagged" ? "Flaggée" : "Active";
+
+// ── SIMs Tab ──────────────────────────────────────────────────────────────────
+function SimsTab({ dist }) {
+  const [sims, setSims] = useState(() => generateSims(dist));
+  const [simSearch, setSimSearch] = useState("");
+  const [blocking, setBlocking] = useState(null);
+
+  const filtered = simSearch
+    ? sims.filter(s => s.msisdn.replace(/\s/g, "").includes(simSearch.replace(/\s/g, "")) || s.id.toLowerCase().includes(simSearch.toLowerCase()))
+    : sims;
+
+  const stats = {
+    total: sims.length,
+    active: sims.filter(s => s.status === "active").length,
+    flagged: sims.filter(s => s.status === "flagged").length,
+    blocked: sims.filter(s => s.status === "blocked").length,
+  };
+
+  async function blockSim(sim) {
+    setBlocking(sim.id);
+    try {
+      await supabase.from("blockings").insert({
+        id: crypto.randomUUID(),
+        msisdn: sim.msisdn.replace(/\s/g, ""),
+        reason: `Bloqué depuis distributeur ${dist.name}`,
+        source: "distributor_action",
+        active: true,
+        operator: dist.operator || "AAR Telco",
+        created_at: new Date().toISOString(),
+      });
+    } catch (_) { /* best effort */ }
+    setSims(prev => prev.map(s => s.id === sim.id ? { ...s, status: "blocked" } : s));
+    setBlocking(null);
+  }
+
+  async function unblockSim(sim) {
+    setSims(prev => prev.map(s => s.id === sim.id ? { ...s, status: "active" } : s));
+  }
+
+  async function blockAll() {
+    const toBlock = sims.filter(s => s.status !== "blocked");
+    for (const sim of toBlock) {
+      try {
+        await supabase.from("blockings").insert({
+          id: crypto.randomUUID(),
+          msisdn: sim.msisdn.replace(/\s/g, ""),
+          reason: `Blocage masse — distributeur ${dist.name}`,
+          source: "distributor_action",
+          active: true,
+          operator: dist.operator || "AAR Telco",
+          created_at: new Date().toISOString(),
+        });
+      } catch (_) { /* best effort */ }
+    }
+    setSims(prev => prev.map(s => ({ ...s, status: "blocked" })));
+  }
+
+  function unblockAll() {
+    setSims(prev => prev.map(s => ({ ...s, status: "active" })));
+  }
+
+  return (
+    <div>
+      {/* Stats rapides */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+        {[
+          { label: "Total", value: stats.total, color: C.navy },
+          { label: "Actives", value: stats.active, color: C.success },
+          { label: "Flaggées", value: stats.flagged, color: C.warning },
+          { label: "Bloquées", value: stats.blocked, color: C.danger },
+        ].map((s, i) => (
+          <div key={i} style={{ background: C.bg, borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", marginTop: 2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Actions masse */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button
+          onClick={blockAll}
+          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "none", background: C.danger, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+          Tout bloquer
+        </button>
+        <button
+          onClick={unblockAll}
+          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "none", background: C.success, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+          Tout débloquer
+        </button>
+      </div>
+
+      {/* Recherche MSISDN */}
+      <input
+        value={simSearch}
+        onChange={e => setSimSearch(e.target.value)}
+        placeholder="Rechercher MSISDN ou ID SIM..."
+        style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.mutedL}`, fontSize: 12, color: C.text, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
+      />
+
+      {/* Tableau SIMs */}
+      <div style={{ border: `1px solid ${C.mutedL}`, borderRadius: 10, overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "8px 10px", background: C.bg, fontSize: 9, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div>MSISDN</div>
+          <div>Statut</div>
+          <div>Risque</div>
+          <div>Appels</div>
+          <div>Activée</div>
+          <div>Action</div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ padding: "20px", textAlign: "center", color: C.muted, fontSize: 12 }}>Aucune SIM trouvée</div>
+        ) : filtered.map(sim => (
+          <div key={sim.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "9px 10px", borderTop: `1px solid ${C.mutedL}`, alignItems: "center", fontSize: 11 }}>
+            <div>
+              <div style={{ fontFamily: "monospace", fontWeight: 700, color: C.navy, fontSize: 10 }}>{sim.msisdn}</div>
+              <div style={{ fontSize: 9, color: C.muted }}>{sim.id}</div>
+            </div>
+            <div>
+              <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: 6, background: simStatusColor(sim.status) + "20", color: simStatusColor(sim.status), fontSize: 10, fontWeight: 700 }}>
+                {simStatusLabel(sim.status)}
+              </span>
+            </div>
+            <div style={{ fontWeight: 700, color: riskColor(toRisk(sim.riskScore)) }}>{sim.riskScore}</div>
+            <div style={{ color: C.textL }}>{fmtNum(sim.calls)}</div>
+            <div style={{ color: C.muted, fontSize: 10 }}>{sim.activatedAt}</div>
+            <div>
+              {sim.status === "blocked" ? (
+                <button
+                  onClick={() => unblockSim(sim)}
+                  style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.success + "20", color: C.success, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+                  Débloquer
+                </button>
+              ) : (
+                <button
+                  disabled={blocking === sim.id}
+                  onClick={() => blockSim(sim)}
+                  style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.danger + "20", color: C.danger, fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: blocking === sim.id ? 0.6 : 1 }}>
+                  {blocking === sim.id ? "…" : "Bloquer"}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Distributor Detail Panel ──────────────────────────────────────────────────
 function DistributorPanel({ dist, onClose, onFlag }) {
+  const [activeTab, setActiveTab] = useState("apercu");
   const risk = toRisk(dist.risk_score || 0);
   const fraudPct = dist.fraud_rate ? (dist.fraud_rate * 100).toFixed(1) : ((dist.fraud_sims || 0) / (dist.sims_sold || 1) * 100).toFixed(1);
 
+  const tabs = [
+    { id: "apercu", label: "Aperçu" },
+    { id: "sims", label: "SIMs" },
+  ];
+
   return (
-    <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 480, background: C.white, boxShadow: "-8px 0 32px rgba(0,0,0,0.15)", zIndex: 1000, overflowY: "auto", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
+    <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 520, background: C.white, boxShadow: "-8px 0 32px rgba(0,0,0,0.15)", zIndex: 1000, overflowY: "auto", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       {/* Header */}
-      <div style={{ background: C.navy, padding: "24px 24px 20px", color: C.white }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div style={{ background: C.navy, padding: "24px 24px 0", color: C.white }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>Profil distributeur</div>
             <div style={{ fontFamily: "monospace", fontSize: 18, fontWeight: 900 }}>{dist.distributor_id || dist.id}</div>
@@ -41,59 +213,86 @@ function DistributorPanel({ dist, onClose, onFlag }) {
             <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: C.white, borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
           </div>
         </div>
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 0 }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: "10px 20px",
+                background: "none",
+                border: "none",
+                borderBottom: activeTab === tab.id ? "2px solid #fff" : "2px solid transparent",
+                color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.5)",
+                fontWeight: activeTab === tab.id ? 700 : 500,
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "'DM Sans','Segoe UI',sans-serif",
+              }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ padding: "20px 24px" }}>
-        {/* KPIs */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
-          {[
-            { label: "SIMs vendues", value: fmtNum(dist.sims_sold), color: C.navy },
-            { label: "SIMs fraude", value: fmtNum(dist.fraud_sims), color: C.danger },
-            { label: "Taux fraude", value: fraudPct + "%", color: parseFloat(fraudPct) > 10 ? C.danger : parseFloat(fraudPct) > 5 ? C.warning : C.success },
-            { label: "Score risque", value: `${dist.risk_score || 0}/100`, color: riskColor(risk) },
-            { label: "Ville", value: dist.city || "—", color: C.textL },
-            { label: "Pays", value: dist.country || "—", color: C.textL },
-            { label: "Opérateur", value: dist.operator || "—", color: C.navy },
-            { label: "Type", value: typeLabel(dist.type), color: typeColor(dist.type) },
-          ].map((k, i) => (
-            <div key={i} style={{ background: C.bg, borderRadius: 10, padding: "12px 14px" }}>
-              <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>{k.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: k.color }}>{k.value}</div>
+        {activeTab === "apercu" && (
+          <>
+            {/* KPIs */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+              {[
+                { label: "SIMs vendues", value: fmtNum(dist.sims_sold), color: C.navy },
+                { label: "SIMs fraude", value: fmtNum(dist.fraud_sims), color: C.danger },
+                { label: "Taux fraude", value: fraudPct + "%", color: parseFloat(fraudPct) > 10 ? C.danger : parseFloat(fraudPct) > 5 ? C.warning : C.success },
+                { label: "Score risque", value: `${dist.risk_score || 0}/100`, color: riskColor(risk) },
+                { label: "Ville", value: dist.city || "—", color: C.textL },
+                { label: "Pays", value: dist.country || "—", color: C.textL },
+                { label: "Opérateur", value: dist.operator || "—", color: C.navy },
+                { label: "Type", value: typeLabel(dist.type), color: typeColor(dist.type) },
+              ].map((k, i) => (
+                <div key={i} style={{ background: C.bg, borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>{k.label}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: k.color }}>{k.value}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Risk bar */}
-        <Card style={{ padding: "14px 16px", marginBottom: 18 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Score de risque global</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ flex: 1, height: 10, background: C.mutedL, borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ width: `${dist.risk_score || 0}%`, height: "100%", background: riskColor(risk), borderRadius: 6, transition: "width 0.4s" }} />
+            {/* Risk bar */}
+            <Card style={{ padding: "14px 16px", marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 10 }}>Score de risque global</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1, height: 10, background: C.mutedL, borderRadius: 6, overflow: "hidden" }}>
+                  <div style={{ width: `${dist.risk_score || 0}%`, height: "100%", background: riskColor(risk), borderRadius: 6, transition: "width 0.4s" }} />
+                </div>
+                <span style={{ fontSize: 18, fontWeight: 900, color: riskColor(risk), minWidth: 40 }}>{dist.risk_score || 0}</span>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <Badge label={riskLabel(risk)} color={riskColor(risk)} />
+              </div>
+            </Card>
+
+            {/* Fraude indicator */}
+            {parseFloat(fraudPct) > 5 && (
+              <div style={{ background: C.danger + "0D", border: `1px solid ${C.danger}33`, borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.danger, marginBottom: 4 }}>! Taux de fraude élevé : {fraudPct}%</div>
+                <div style={{ fontSize: 11, color: C.textL }}>{fmtNum(dist.fraud_sims)} SIM(s) sur {fmtNum(dist.sims_sold)} liées à des activités frauduleuses détectées.</div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              {dist.flagged ? (
+                <Btn variant="success" style={{ flex: 1 }} onClick={() => onFlag && onFlag(dist.id, false)}>Lever le flag</Btn>
+              ) : (
+                <Btn variant="danger" style={{ flex: 1 }} onClick={() => onFlag && onFlag(dist.id, true)}>Flaguer distributeur</Btn>
+              )}
+              <Btn variant="ghost" style={{ flex: 1 }}>Signaler à l'opérateur</Btn>
             </div>
-            <span style={{ fontSize: 18, fontWeight: 900, color: riskColor(risk), minWidth: 40 }}>{dist.risk_score || 0}</span>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <Badge label={riskLabel(risk)} color={riskColor(risk)} />
-          </div>
-        </Card>
-
-        {/* Fraude indicator */}
-        {parseFloat(fraudPct) > 5 && (
-          <div style={{ background: C.danger + "0D", border: `1px solid ${C.danger}33`, borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.danger, marginBottom: 4 }}>! Taux de fraude élevé : {fraudPct}%</div>
-            <div style={{ fontSize: 11, color: C.textL }}>{fmtNum(dist.fraud_sims)} SIM(s) sur {fmtNum(dist.sims_sold)} liées à des activités frauduleuses détectées.</div>
-          </div>
+          </>
         )}
 
-        {/* Actions */}
-        <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-          {dist.flagged ? (
-            <Btn variant="success" style={{ flex: 1 }} onClick={() => onFlag && onFlag(dist.id, false)}>Lever le flag</Btn>
-          ) : (
-            <Btn variant="danger" style={{ flex: 1 }} onClick={() => onFlag && onFlag(dist.id, true)}>Flaguer distributeur</Btn>
-          )}
-          <Btn variant="ghost" style={{ flex: 1 }}>Signaler à l'opérateur</Btn>
-        </div>
+        {activeTab === "sims" && <SimsTab dist={dist} />}
       </div>
     </div>
   );
