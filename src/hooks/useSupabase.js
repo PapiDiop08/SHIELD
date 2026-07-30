@@ -16,7 +16,7 @@ export function useOperators() {
         const [alertsRes, blockedRes, rulesRes] = await Promise.all([
           supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('operator_id', o.id),
           supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('operator_id', o.id).eq('status', 'blocked'),
-          supabase.from('rules').select('*', { count: 'exact', head: true }).eq('active', true),
+          supabase.from('rules').select('*', { count: 'exact', head: true }).eq('active', true).eq('scope', 'telco'),
         ]);
         return {
           id: o.id, name: o.name, code: o.code, country: o.country,
@@ -180,6 +180,7 @@ export function useRules() {
     const { data, error } = await supabase
       .from('rules')
       .select('*')
+      .eq('scope', 'telco')
       .order('triggered', { ascending: false });
     if (!error && data) {
       setRulesState(data.map(r => ({
@@ -436,7 +437,7 @@ export function useDashboardStats(operatorId = null) {
       // Règles actives
       const { count: activeRules } = await supabase
         .from('rules').select('*', { count: 'exact', head: true })
-        .eq('active', true);
+        .eq('active', true).eq('scope', 'telco');
 
       // Cases ouverts
       const { count: openCases } = await opFilter(
