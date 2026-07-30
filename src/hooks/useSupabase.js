@@ -143,7 +143,7 @@ export function useAlerts(operatorFilter) {
         triggeredRules: a.triggered_rules || (a.reason ? [a.reason] : []),
       })));
     } else {
-      setAlertsState(MOCK_ALERTS || []);
+      setAlertsState([]);
     }
     setLoading(false);
   }, [operatorFilter]);
