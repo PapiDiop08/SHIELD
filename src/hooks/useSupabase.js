@@ -255,6 +255,7 @@ export function useBlockings(operatorFilter) {
         blockerName: "AAR", reason: b.reason,
         source: b.source, interOpSource: b.inter_op_source,
         notes: b.notes, active: b.active, date: b.blocked_at,
+        created_at: b.created_at,
         autoFlagged: b.auto_flagged || [],
       })));
     }

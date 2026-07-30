@@ -19,17 +19,19 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
   function showToast(msg, color=C.success) { setToast({msg,color}); setTimeout(()=>setToast(null),3000); }
 
   const filtered = useMemo(() => {
-    let list = [...blockings];
-    if (search) list = list.filter(b => b.msisdn?.includes(search) || b.reason?.toLowerCase().includes(search.toLowerCase()) || (b.imei||"").includes(search));
-    if (filterOp !== "all") list = list.filter(b => b.operator === filterOp);
-    if (filterSource !== "all") list = list.filter(b => b.source === filterSource);
-    if (filterActive === "active") list = list.filter(b => b.active);
-    if (filterActive === "inactive") list = list.filter(b => !b.active);
-    return list.sort((a, b) => {
-      const da = String(a?.date || a?.created_at || "");
-      const db = String(b?.date || b?.created_at || "");
-      return db.localeCompare(da);
-    });
+    try {
+      let list = [...(blockings || [])];
+      if (search) list = list.filter(b => b.msisdn?.includes(search) || b.reason?.toLowerCase().includes(search.toLowerCase()) || (b.imei||"").includes(search));
+      if (filterOp !== "all") list = list.filter(b => b.operator === filterOp);
+      if (filterSource !== "all") list = list.filter(b => b.source === filterSource);
+      if (filterActive === "active") list = list.filter(b => b.active);
+      if (filterActive === "inactive") list = list.filter(b => !b.active);
+      return list.sort((a, b) => {
+        const da = String(a?.date || a?.created_at || "");
+        const db = String(b?.date || b?.created_at || "");
+        return db.localeCompare(da);
+      });
+    } catch(e) { console.error("Blockings sort error:", e); return []; }
   }, [blockings, search, filterOp, filterSource, filterActive]);
 
   const today = new Date().toISOString().slice(0,10);
