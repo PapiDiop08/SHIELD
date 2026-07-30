@@ -18,15 +18,12 @@ export async function blockAndBlacklist({ msisdn, imei, imsi, cell_id, operatorI
 
     // 2. Créer le blocage dans blockings
     const { data: blocking, error: blockErr } = await supabase.from("blockings").insert([{
-      operator_id: operatorId || null,
+      operator: operatorId || 'AAR Telco',
       msisdn: msisdn || null,
-      imei: imei || null,
-      imsi: imsi || null,
-      cell_id: cell_id || null,
       reason: reason || "Blocage manuel SHIELD",
       source: "analyst",
       active: true,
-      blocked_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     }]).select().single();
     if (blockErr) results.errors.push(`Blocking: ${blockErr.message}`);
     else results.blocking = blocking;

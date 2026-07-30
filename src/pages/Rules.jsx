@@ -315,8 +315,8 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
     }
   }
 
-  const totalTriggered = rules.reduce((a, r) => a + r.triggered, 0);
-  const totalBlocked   = rules.reduce((a, r) => a + r.blocked, 0);
+  const totalTriggered = (rules || []).reduce((a, r) => a + r.triggered, 0);
+  const totalBlocked   = (rules || []).reduce((a, r) => a + r.blocked, 0);
 
   // ── Vue Builder ──────────────────────────────────────────────────────
   if (showBuilder) return (

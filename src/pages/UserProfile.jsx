@@ -12,11 +12,11 @@ export default function UserProfile({ onBack }) {
   const [pwdMsg, setPwdMsg] = useState(null);
   const role = ROLES[currentUser?.role];
 
-  function handleChangePwd(e) {
+  async function handleChangePwd(e) {
     e.preventDefault();
     if (newPwd !== confirmPwd) { setPwdMsg({ text: "Les mots de passe ne correspondent pas", error: true }); return; }
     if (newPwd.length < 8) { setPwdMsg({ text: "Minimum 8 caractères", error: true }); return; }
-    const result = updatePassword(newPwd);
+    const result = await updatePassword(newPwd);
     if (result.success) {
       setPwdMsg({ text: "Mot de passe modifié avec succès", error: false });
       setOldPwd(""); setNewPwd(""); setConfirmPwd("");

@@ -154,10 +154,10 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
       await supabase.from("blockings").insert({
         msisdn,
         reason: `Auto-blocage — ${threshold} plaintes ou plus sur ce numéro`,
-        operator_id: operator,
+        operator: operator || 'AAR Telco',
         active: true,
         source: "auto",
-        blocked_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       });
       await supabase.from("complaints")
         .update({ auto_blocked: true })
@@ -206,7 +206,7 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
     <div style={{ padding: "28px 30px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
         title="Plaintes & Signalements"
-        sub={`${complaints.length} signalements · Données en direct`}
+        sub={`${(complaints||[]).length} signalements · Données en direct`}
         action={
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <label style={{ fontSize: 12, color: "#8a96b8", fontWeight: 600 }}>

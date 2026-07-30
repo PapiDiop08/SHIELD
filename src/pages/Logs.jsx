@@ -125,7 +125,7 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
         title="Audit Log"
-        sub={loading ? "Chargement chargement…" : `${allLogs.length} événements · Registre d'activité`}
+        sub={loading ? "Chargement…" : `${allLogs.length} événements · Registre d'activité`}
         action={
           <button onClick={refetch}
             style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
@@ -138,7 +138,7 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
       <div style={{ background: C.navyL, border: `1px solid ${C.navyB}`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
         <span>SEC</span>
         <span style={{ fontSize: 12, color: C.white, fontWeight: 600 }}>
-          Toutes les actions sont enregistrées automatiquement automatiquement — Non modifiable, non supprimable
+          Toutes les actions sont enregistrées automatiquement — Non modifiable, non supprimable
         </span>
       </div>
 
@@ -201,7 +201,7 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
               {loading && (
                 <tr>
                   <td colSpan={6} style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-                    … Chargement chargement…
+                    … Chargement…
                   </td>
                 </tr>
               )}

@@ -41,8 +41,9 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
   const [activeTab, setActiveTab] = useState("overview");
 
   // ── Filtrage depuis les alertes (props) ──────────────────────
+  const safeAlerts = alerts || [];
   const filtered = useMemo(() => {
-    let list = [...alerts];
+    let list = [...safeAlerts];
     if (selectedType !== "all") list = list.filter(a => a.type === selectedType);
     list = list.filter(a => inPeriod(a.createdAt, period));
     return list;

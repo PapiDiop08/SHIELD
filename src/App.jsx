@@ -170,7 +170,7 @@ function AppInner() {
       {page === "cells"      && <Cells      {...sharedProps} />}
       {page === "complaints" && <Complaints {...sharedProps} />}
       {page === "reports"    && <Reports    {...sharedProps} cases={[]} />}
-      {page === "logs"       && <Logs       addLog={addLogEnhanced} users={users} />}
+      {page === "logs"       && <Logs       addLog={addLogEnhanced} users={users} logs={[]} />}
       {page === "admin"      && <Admin      {...sharedProps} />}
       {page === "udf"        && <UDFManager addLog={addLogEnhanced} />}
       {page === "settings"   && <Settings   {...sharedProps} />}

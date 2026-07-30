@@ -267,8 +267,8 @@ export function useBlockings(operatorFilter) {
 
   const createBlocking = useCallback(async (blocking, operatorId) => {
     const { data, error } = await supabase.from('blockings').insert([{
-      operator_id: operatorId, msisdn: blocking.msisdn,
-      imei: blocking.imei || null, reason: blocking.reason,
+      operator: operatorId, msisdn: blocking.msisdn,
+      reason: blocking.reason,
       source: blocking.source || 'analyst',
       inter_op_source: blocking.interOpSource || null,
       notes: blocking.notes || null, active: true, auto_flagged: [],
@@ -426,7 +426,7 @@ export function useDashboardStats(operatorId = null) {
       // Détections aujourd'hui
       const { count: detectionsToday } = await opFilter(
         supabase.from('alerts').select('*', { count: 'exact', head: true })
-          .gte('detected_at', today.toISOString())
+          .gte('created_at', today.toISOString())
       );
 
       // Fraudes bloquées (total)
@@ -466,9 +466,9 @@ export function useDashboardStats(operatorId = null) {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
       const { data: trendRaw } = await opFilter(
-        supabase.from('alerts').select('detected_at, status')
-          .gte('detected_at', sevenDaysAgo.toISOString())
-          .order('detected_at', { ascending: true })
+        supabase.from('alerts').select('created_at, status')
+          .gte('created_at', sevenDaysAgo.toISOString())
+          .order('created_at', { ascending: true })
       );
 
       if (trendRaw) {
@@ -480,7 +480,7 @@ export function useDashboardStats(operatorId = null) {
           grouped[key] = { date: key, total: 0, blocked: 0 };
         }
         trendRaw.forEach(a => {
-          const key = a.detected_at.slice(0, 10);
+          const key = a.created_at.slice(0, 10);
           if (grouped[key]) {
             grouped[key].total++;
             if (a.status === 'blocked') grouped[key].blocked++;

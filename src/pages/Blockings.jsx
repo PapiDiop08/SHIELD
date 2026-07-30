@@ -108,7 +108,7 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
       {/* Filters */}
       <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
         <SearchInput value={search} onChange={setSearch} placeholder="MSISDN, IMEI, raison..." />
-        {isGFM() && <Select value={filterOp} onChange={setFilterOp} options={[{value:"all",label:"Tous opérateurs"},...operators.map(o=>({value:o.name,label:o.name}))]} />}
+        {isGFM() && <Select value={filterOp} onChange={setFilterOp} options={[{value:"all",label:"Tous opérateurs"},...(operators||[]).map(o=>({value:o.name,label:o.name}))]} />}
         <Select value={filterSource} onChange={setFilterSource} options={[{value:"all",label:"Toutes sources"},{value:"shield_auto",label:"BOT Auto"},{value:"analyst",label:"USR Analyste"},{value:"inter_operator",label:"Sync Inter-op"}]} />
         <Select value={filterActive} onChange={setFilterActive} options={[{value:"all",label:"Tous"},{value:"active",label:"Actifs"},{value:"inactive",label:"Débloqués"}]} />
         {(search||filterOp!=="all"||filterSource!=="all") && <button onClick={()=>{setSearch("");setFilterOp("all");setFilterSource("all");}} style={{background:"none",border:"none",color:C.red,fontSize:12,cursor:"pointer",fontWeight:600}}>X</button>}

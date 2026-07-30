@@ -63,11 +63,12 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
   const [confirm, setConfirm]           = useState(null);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
+  const safeAlerts = alerts || [];
   const analysts = (users||[]).filter(u => u.active && ["analyst", "admin", "superadmin", "gfm_analyst"].includes(u.role));
-  const types = [...new Set(alerts.map(a => a.type))].filter(Boolean);
+  const types = [...new Set(safeAlerts.map(a => a.type))].filter(Boolean);
 
   const filtered = useMemo(() => {
-    let list = [...alerts].filter(a => !["cleared", "closed", "false_positive"].includes(a.status));
+    let list = [...safeAlerts].filter(a => !["cleared", "closed", "false_positive"].includes(a.status));
     if (search) list = list.filter(a =>
       (a.msisdn || "").includes(search) ||
       (a.type || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -85,7 +86,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
       (b.createdAt || b.detected_at || "").localeCompare(a.createdAt || a.detected_at || "")
     );
     return list;
-  }, [alerts, search, filterSev, filterStatus, filterType, filterAssigned, dateFrom, dateTo, sortBy, currentUser]);
+  }, [safeAlerts, search, filterSev, filterStatus, filterType, filterAssigned, dateFrom, dateTo, sortBy, currentUser]);
 
   // À bloquer = alertes filtrées avec score élevé non encore bloquées
   const toBlock = filtered.filter(a => a.status !== "blocked" && (a.score || 0) >= 70);
