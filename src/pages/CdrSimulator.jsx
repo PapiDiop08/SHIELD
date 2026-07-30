@@ -220,7 +220,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
     }
 
     // Accumuler les hits par règle (flush périodique vers DB)
-    if (topRule) {
+    if (topRule && topRule.id) {
       const rh = ruleHitsRef.current;
       if (!rh[topRule.id]) rh[topRule.id] = { triggered: 0, blocked: 0, base: topRule };
       rh[topRule.id].triggered++;
