@@ -1,6 +1,5 @@
 // ── AAR Telco — Simulateur flux CDR opérateur temps réel ─────────────────
-// Génère uniquement des appels voix (CDR) — 50% fraud / 50% légit
-// Évalue les règles statefully et écrit en base Supabase
+// Génère CDR voix + Plaintes + Distributeurs SIM suspects
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { C } from "../theme.js";
@@ -10,7 +9,66 @@ import { createBatchSequence, FRAUD_PROFILES, LEGIT_PROFILES } from "../engine/c
 import { supabase } from "../supabase.js";
 
 const fmtTime = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+
+const FRAUD_TYPE_MAP = {
+  simbox: "SIM Box",
+  wangiri: "Wangiri",
+  irsf: "IRSF",
+  ato: "ATO",
+};
+
+const FRAUD_REASONS = {
+  simbox: "SIM Box détectée — trafic international exclusif, rotation IMEI suspecte",
+  wangiri: "Wangiri — appels manqués internationaux courts (< 3s) en masse",
+  irsf: "IRSF — terminaison vers numéros SVA/premium internationaux",
+  ato: "ATO — prise de contrôle compte, comportement anormal post-changement SIM",
+};
+
 const FRAUD_COLOR = { simbox: C.danger, wangiri: "#e67e22", irsf: "#8e44ad", ato: "#c0392b" };
+
+// ── Données synthétiques pour Plaintes ────────────────────────────────────
+const COMPLAINT_TEMPLATES = [
+  { tag:"Wangiri", fraud_type:"Wangiri", raw:"J'ai reçu un appel manqué du +25470XXXXXX, j'ai rappelé et j'ai été débité immédiatement sans parler à personne.", msisdn_reported: () => `+254${70+Math.floor(Math.random()*10)}${String(Math.floor(Math.random()*9999999)).padStart(7,'0')}` },
+  { tag:"Wangiri", fraud_type:"Wangiri", raw:"Appel manqué d'un numéro international africain. Dès le rappel, la communication a duré 1 seconde et j'ai perdu 2000 XOF.", msisdn_reported: () => `+23370${String(Math.floor(Math.random()*9999999)).padStart(7,'0')}` },
+  { tag:"Arnaque marabout", fraud_type:"Arnaque", raw:"Un individu se faisant passer pour un marabout m'a contacté et m'a demandé d'envoyer de l'argent via Mobile Money pour un rituel. Numéro utilisé: 221${Math.floor(Math.random()*9000000+1000000)}", msisdn_reported: () => `221${Math.floor(Math.random()*9000000+70000000)}` },
+  { tag:"Phishing", fraud_type:"Phishing", raw:"J'ai reçu un SMS prétendant venir de mon opérateur me demandant de confirmer mes données bancaires via un lien suspect.", msisdn_reported: () => null },
+  { tag:"Arnaque marabout", fraud_type:"Arnaque", raw:"Quelqu'un m'a appelé en se faisant passer pour un agent de l'opérateur et m'a demandé mon code PIN et des transferts d'argent.", msisdn_reported: () => `221${Math.floor(Math.random()*9000000+70000000)}` },
+  { tag:"Fraude", fraud_type:"SIM Box", raw:"Je suis victime d'usurpation. Mon numéro a été utilisé pour des appels internationaux que je n'ai pas effectués.", msisdn_reported: () => `221770${String(Math.floor(Math.random()*999999)).padStart(6,'0')}` },
+  { tag:"Fraude", fraud_type:"ATO", raw:"Mon compte a été piraté. Des transferts non autorisés ont été effectués depuis mon numéro après un échange de SIM.", msisdn_reported: () => `221${Math.floor(Math.random()*9000000+76000000)}` },
+  { tag:"Harcèlement", fraud_type:"Spam", raw:"Je reçois des dizaines d'appels par jour d'un même numéro qui raccroche immédiatement dès que je décroche.", msisdn_reported: () => `+225${Math.floor(Math.random()*9999999+1000000)}` },
+  { tag:"Escroquerie", fraud_type:"Arnaque", raw:"On m'a dit que j'avais gagné un prix et qu'il fallait payer des frais d'envoi via Orange Money. J'ai perdu 15000 XOF.", msisdn_reported: () => `221${Math.floor(Math.random()*9000000+77000000)}` },
+  { tag:"Phishing", fraud_type:"IRSF", raw:"J'ai cliqué sur un lien reçu par SMS et mon solde a été débité automatiquement pour des abonnements que je n'ai pas demandés.", msisdn_reported: () => null },
+];
+
+// ── Données synthétiques pour Distributeurs SIM ───────────────────────────
+const CITIES = ["Dakar", "Pikine", "Guédiawaye", "Thiès", "Ziguinchor", "Saint-Louis", "Kaolack", "Mbour", "Touba", "Diourbel"];
+const DIST_TYPES = ["Revendeur agréé", "Revendeur indépendant", "Grossiste", "Kiosque"];
+const DIST_NAMES = ["Télécom Express", "SIM Point", "Africa Connect", "Digital Plus", "Mobile Hub", "Net Services", "Dial Shop", "Comm Center", "TelePro", "SimBox Store", "UniTel", "Fast Connect"];
+
+function genDistributor(fraudLevel) {
+  const isSuspect = fraudLevel > 0.5;
+  const simsSold = Math.floor(Math.random() * 500 + 50);
+  const fraudSims = isSuspect ? Math.floor(simsSold * (0.3 + Math.random() * 0.5)) : Math.floor(simsSold * Math.random() * 0.05);
+  const fraudRate = fraudSims / simsSold;
+  const riskScore = Math.round(fraudRate * 100 + (isSuspect ? 20 : 0));
+  const city = CITIES[Math.floor(Math.random() * CITIES.length)];
+  const name = DIST_NAMES[Math.floor(Math.random() * DIST_NAMES.length)] + (isSuspect ? " (suspect)" : "");
+  return {
+    id: crypto.randomUUID(),
+    distributor_id: `DIST-${String(Math.floor(Math.random()*9000+1000))}`,
+    name,
+    type: DIST_TYPES[Math.floor(Math.random() * DIST_TYPES.length)],
+    city,
+    operator: "AAR Telco",
+    country: "Sénégal",
+    sims_sold: simsSold,
+    fraud_sims: fraudSims,
+    fraud_rate: parseFloat(fraudRate.toFixed(4)),
+    flagged: isSuspect,
+    risk_score: Math.min(100, riskScore),
+    created_at: new Date(Date.now() - Math.random() * 30 * 86400000).toISOString(),
+  };
+}
 
 function StatusBadge({ type }) {
   const colors = { FRAUD: C.danger, ALERT: "#e67e22", OK: C.success };
@@ -48,7 +106,7 @@ function CdrRow({ entry, idx }) {
       </span>
       <div style={{ display:"flex", gap:4, alignItems:"center", justifyContent:"flex-end" }}>
         <StatusBadge type={status} />
-        {triggeredRule && <span style={{ fontSize:9, color:C.danger, maxWidth:100, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{triggeredRule.name}</span>}
+        {triggeredRule && <span style={{ fontSize:9, color:C.danger, maxWidth:100, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{FRAUD_TYPE_MAP[profile.type]||triggeredRule.name}</span>}
       </div>
     </div>
   );
@@ -56,15 +114,16 @@ function CdrRow({ entry, idx }) {
 
 function StatsPanel({ stats }) {
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8, marginBottom:16 }}>
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(8,1fr)", gap:8, marginBottom:16 }}>
       {[
-        ["CDR reçus",  stats.total,   C.navy],
-        ["Légitimes",  stats.legit,   C.success],
-        ["Alertes",    stats.alerts,  "#e67e22"],
-        ["Bloqués",    stats.blocked, C.danger],
-        ["SIM Box",    stats.simbox,  C.danger],
-        ["Wangiri",    stats.wangiri, "#e67e22"],
-        ["IRSF",       stats.irsf,    "#8e44ad"],
+        ["CDR reçus",   stats.total,       C.navy],
+        ["Légitimes",   stats.legit,       C.success],
+        ["Alertes",     stats.alerts,      "#e67e22"],
+        ["Bloqués",     stats.blocked,     C.danger],
+        ["SIM Box",     stats.simbox,      C.danger],
+        ["Wangiri",     stats.wangiri,     "#e67e22"],
+        ["IRSF",        stats.irsf,        "#8e44ad"],
+        ["ATO",         stats.ato,         "#c0392b"],
       ].map(([label,val,color]) => (
         <div key={label} style={{ background:C.bg, borderRadius:8, padding:"8px 12px", borderLeft:`3px solid ${color}` }}>
           <div style={{ fontSize:18, fontWeight:800, color }}>{val}</div>
@@ -83,6 +142,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
   const [batchSize, setBatchSize] = useState(3);
   const [batchMode, setBatchMode] = useState(false);
   const [batchProgress, setBatchProgress] = useState(0);
+  const [batchLog,  setBatchLog]  = useState([]);
 
   const stateMap = useRef({});
   const timerRef = useRef(null);
@@ -117,17 +177,18 @@ export default function CdrSimulator({ rules = [], addAlert }) {
       country_code_b: cdr.country_code_b,
     }).then(() => {});
 
-    // Créer alerte si règle déclenchée
+    // Créer alerte avec fraud_type basé sur le profil (pas juste la règle)
     if (topRule) {
+      const fraudType = FRAUD_TYPE_MAP[profile.type] || topRule.name;
       const alertRow = {
         id: crypto.randomUUID(),
         msisdn: cdr.msisdn_a,
         imsi: cdr.imsi || null,
-        fraud_type: topRule.name,
+        fraud_type: fraudType,
         status: topRule.action==='block' ? 'blocked' : 'open',
         score: Math.min(100, 60 + triggered.length * 15),
-        severity: topRule.severity || 'high',
-        reason: `Règle "${topRule.name}" — ${topRule.description||''}`,
+        severity: profile.type === 'irsf' ? 'critical' : topRule.severity || 'high',
+        reason: FRAUD_REASONS[profile.type] || `Règle "${topRule.name}"`,
         created_at: new Date().toISOString(),
       };
       supabase.from('alerts').insert(alertRow).select().then(({ data, error }) => {
@@ -177,22 +238,71 @@ export default function CdrSimulator({ rules = [], addAlert }) {
     setFeed([]);
     setStats({ ...statsRef.current });
     setBatchProgress(0);
+    setBatchLog([]);
   };
 
-  // Batch 300 CDR
-  const generateBatch = useCallback(async () => {
+  // ── Génération complète : CDR + Plaintes + Distributeurs ─────────────────
+  const generateAll = useCallback(async () => {
     if (batchMode) return;
     setBatchMode(true);
     setBatchProgress(0);
-    const seq   = createBatchSequence();
-    const TOTAL = 300;
-    for (let i = 0; i < TOTAL; i += 5) {
+    setBatchLog([]);
+    const log = (msg) => setBatchLog(p => [...p, msg]);
+
+    // 1. CDR — 300 appels
+    log("📡 Génération 300 CDR voix...");
+    const seq = createBatchSequence();
+    const TOTAL_CDR = 300;
+    for (let i = 0; i < TOTAL_CDR; i += 5) {
       const promises = [];
-      for (let j = 0; j < 5 && i+j < TOTAL; j++) promises.push(handleCDR(seq()));
+      for (let j = 0; j < 5 && i+j < TOTAL_CDR; j++) promises.push(handleCDR(seq()));
       await Promise.all(promises);
-      setBatchProgress(Math.min(100, Math.round(((i+5)/TOTAL)*100)));
+      setBatchProgress(Math.round(((i+5)/TOTAL_CDR) * 50)); // 0→50%
+      await new Promise(r => setTimeout(r, 40));
+    }
+    log(`✅ ${TOTAL_CDR} CDR générés`);
+
+    // 2. Plaintes — 40 plaintes variées
+    log("📋 Génération 40 plaintes clients...");
+    const TOTAL_COMPLAINTS = 40;
+    for (let i = 0; i < TOTAL_COMPLAINTS; i += 5) {
+      const batch = [];
+      for (let j = 0; j < 5 && i+j < TOTAL_COMPLAINTS; j++) {
+        const tpl = COMPLAINT_TEMPLATES[Math.floor(Math.random() * COMPLAINT_TEMPLATES.length)];
+        batch.push({
+          id: crypto.randomUUID(),
+          msisdn: `221${Math.floor(Math.random()*9000000+70000000)}`, // numéro de la victime
+          msisdn_reported: tpl.msisdn_reported(),
+          tag: tpl.tag,
+          fraud_type: tpl.fraud_type,
+          raw: tpl.raw,
+          status: ['open','investigating','closed'][Math.floor(Math.random()*3)],
+          auto_blocked: Math.random() > 0.7,
+          created_at: new Date(Date.now() - Math.random() * 7 * 86400000).toISOString(),
+        });
+      }
+      await supabase.from('complaints').insert(batch);
+      setBatchProgress(50 + Math.round(((i+5)/TOTAL_COMPLAINTS) * 25)); // 50→75%
       await new Promise(r => setTimeout(r, 50));
     }
+    log(`✅ ${TOTAL_COMPLAINTS} plaintes insérées`);
+
+    // 3. Distributeurs SIM — 20 distributeurs (dont suspects)
+    log("🏪 Génération 20 distributeurs SIM...");
+    const TOTAL_DIST = 20;
+    for (let i = 0; i < TOTAL_DIST; i += 5) {
+      const batch = [];
+      for (let j = 0; j < 5 && i+j < TOTAL_DIST; j++) {
+        // 40% suspects (fraud_level > 0.5), 60% normaux
+        batch.push(genDistributor(j < 2 ? 0.8 : Math.random() * 0.3));
+      }
+      await supabase.from('distributors').insert(batch);
+      setBatchProgress(75 + Math.round(((i+5)/TOTAL_DIST) * 25)); // 75→100%
+      await new Promise(r => setTimeout(r, 50));
+    }
+    log(`✅ ${TOTAL_DIST} distributeurs insérés`);
+
+    log("🎉 Génération complète — allez voir Détections, Plaintes, Distributeurs SIM");
     setBatchMode(false);
     setBatchProgress(100);
   }, [batchMode, handleCDR]);
@@ -220,7 +330,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
             Simulateur CDR — Flux opérateur temps réel
           </h2>
           <p style={{ margin:"4px 0 0", fontSize:12, color:C.muted }}>
-            Appels voix uniquement · {rulesCount} règles actives · 50% fraud / 50% légit
+            CDR voix · Plaintes · Distributeurs · {rulesCount} règles actives · 50% fraud / 50% légit
           </p>
         </div>
         <div style={{ display:"flex", gap:10, alignItems:"center" }}>
@@ -238,23 +348,29 @@ export default function CdrSimulator({ rules = [], addAlert }) {
             <option value={5}>5 CDR/tick</option>
           </select>
           <Btn onClick={reset} variant="outline" small>Réinitialiser</Btn>
-          <Btn onClick={generateBatch} disabled={batchMode} variant="outline" small
-            style={{ background:"#f3e8ff", color:"#7c3aed", borderColor:"#7c3aed" }}>
-            {batchMode ? `⏳ ${batchProgress}%` : "⚡ Générer 300 CDR"}
+          <Btn onClick={generateAll} disabled={batchMode} small
+            style={{ background: batchMode?"#e5e7eb":"#7c3aed", color:C.white, border:"none", padding:"6px 14px" }}>
+            {batchMode ? `⏳ ${batchProgress}%` : "⚡ Générer tout (CDR + Plaintes + Distrib.)"}
           </Btn>
           {running
             ? <Btn onClick={pause} variant="outline" small style={{ color:C.warning, borderColor:C.warning }}>⏸ Pause</Btn>
-            : <Btn onClick={start} variant="navy" small>▶ Démarrer le flux</Btn>
+            : <Btn onClick={start} variant="navy" small>▶ Flux CDR continu</Btn>
           }
         </div>
       </div>
 
-      {/* Barre de progression batch */}
+      {/* Barre de progression */}
       {batchMode && (
         <div style={{ marginBottom:12 }}>
-          <div style={{ fontSize:11, color:"#7c3aed", marginBottom:4 }}>Génération — {batchProgress}% ({Math.round(batchProgress*3)}/300 CDR)</div>
-          <div style={{ height:6, background:C.mutedL, borderRadius:4 }}>
-            <div style={{ width:`${batchProgress}%`, height:"100%", background:"#7c3aed", borderRadius:4, transition:"width 0.1s" }} />
+          <div style={{ height:6, background:C.mutedL, borderRadius:4, marginBottom:8 }}>
+            <div style={{ width:`${batchProgress}%`, height:"100%", background:"#7c3aed", borderRadius:4, transition:"width 0.2s" }} />
+          </div>
+          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+            {batchLog.map((l,i) => (
+              <span key={i} style={{ fontSize:11, color: l.startsWith("✅")||l.startsWith("🎉") ? C.success : l.startsWith("❌") ? C.danger : C.navy }}>
+                {l}
+              </span>
+            ))}
           </div>
         </div>
       )}
@@ -278,7 +394,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
           fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase" }}>
           <span>Heure</span><span>Profil</span><span>MSISDN A</span><span>MSISDN B</span>
           <span>Durée</span><span>Type</span><span>SVA</span><span>Cell</span>
-          <span>État 24h</span><span style={{ textAlign:"right" }}>Résultat</span>
+          <span>État MSISDN (24h)</span><span style={{ textAlign:"right" }}>Résultat</span>
         </div>
         <div style={{ maxHeight:520, overflowY:"auto" }}>
           {feed.length===0 ? (
@@ -286,7 +402,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
               <div style={{ fontSize:32, marginBottom:12 }}>📡</div>
               <div style={{ fontSize:14, fontWeight:600 }}>En attente du flux CDR</div>
               <div style={{ fontSize:12, marginTop:6 }}>
-                <b>⚡ Générer 300 CDR</b> pour un batch immédiat · <b>▶ Démarrer</b> pour le flux continu
+                <b>⚡ Générer tout</b> pour un batch complet (CDR + Plaintes + Distributeurs) · <b>▶ Flux</b> pour le temps réel
               </div>
             </div>
           ) : feed.map((entry,idx) => <CdrRow key={entry.id} entry={entry} idx={idx} />)}
@@ -294,18 +410,25 @@ export default function CdrSimulator({ rules = [], addAlert }) {
       </Card>
 
       <div style={{ marginTop:12, display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-        <span style={{ fontSize:11, color:C.muted }}>Profils :</span>
-        {[...FRAUD_PROFILES,...LEGIT_PROFILES].map(p => (
+        <span style={{ fontSize:11, color:C.muted, fontWeight:700 }}>Profils fraud :</span>
+        {FRAUD_PROFILES.map(p => (
           <span key={p.id} style={{ fontSize:10, padding:"2px 8px", borderRadius:12,
-            background:(p.type?(FRAUD_COLOR[p.type]||C.warning):C.success)+"22",
-            color:p.type?(FRAUD_COLOR[p.type]||C.warning):C.success,
-            border:`1px solid ${(p.type?(FRAUD_COLOR[p.type]||C.warning):C.success)}44` }}>
+            background:(FRAUD_COLOR[p.type]||C.warning)+"22", color:FRAUD_COLOR[p.type]||C.warning,
+            border:`1px solid ${(FRAUD_COLOR[p.type]||C.warning)}44` }}>
+            {p.id} · {p.label}
+          </span>
+        ))}
+        <span style={{ fontSize:11, color:C.muted, fontWeight:700, marginLeft:8 }}>Légit :</span>
+        {LEGIT_PROFILES.map(p => (
+          <span key={p.id} style={{ fontSize:10, padding:"2px 8px", borderRadius:12,
+            background:C.success+"22", color:C.success, border:`1px solid ${C.success}44` }}>
             {p.id} · {p.label}
           </span>
         ))}
       </div>
-      <div style={{ marginTop:8, fontSize:11, color:C.muted }}>
-        💡 Après génération, allez dans <b>Détections</b> pour voir les alertes créées en temps réel.
+
+      <div style={{ marginTop:8, display:"flex", gap:16, fontSize:11, color:C.muted }}>
+        <span>💡 Après génération → <b>Détections</b> (alertes CDR) · <b>Plaintes</b> (40 plaintes) · <b>Distributeurs SIM</b> (20 distrib. dont suspects)</span>
       </div>
     </div>
   );
