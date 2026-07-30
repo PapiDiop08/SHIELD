@@ -365,9 +365,10 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator, re
     log(`✅ ${TOTAL_DIST} distributeurs insérés`);
 
     log("🎉 Génération complète — allez voir Détections, Plaintes, Distributeurs SIM");
+    await flushRuleStats();
     setBatchMode(false);
     setBatchProgress(100);
-  }, [batchMode, handleCDR]);
+  }, [batchMode, handleCDR, flushRuleStats]);
 
   useEffect(() => {
     if (running) {
