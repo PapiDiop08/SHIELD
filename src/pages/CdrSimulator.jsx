@@ -150,6 +150,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
   const feedRef  = useRef([]);
   const statsRef = useRef({ total:0, legit:0, alerts:0, blocked:0, simbox:0, wangiri:0, irsf:0, ato:0 });
   const activeRulesRef = useRef([]);
+  const ruleHitsRef = useRef({}); // { ruleId: { triggered, blocked, base } }
 
   useEffect(() => {
     activeRulesRef.current = (rules||[]).filter(r => r.active && r.scope==='telco');
@@ -218,6 +219,14 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
       }
     }
 
+    // Accumuler les hits par règle (flush périodique vers DB)
+    if (topRule) {
+      const rh = ruleHitsRef.current;
+      if (!rh[topRule.id]) rh[topRule.id] = { triggered: 0, blocked: 0, base: topRule };
+      rh[topRule.id].triggered++;
+      if (topRule.action === 'block') rh[topRule.id].blocked++;
+    }
+
     // Feed + stats
     const entry = { cdr, profile, result, status, triggeredRule: topRule, id: Date.now()+Math.random() };
     feedRef.current = [entry, ...feedRef.current].slice(0, 200);
@@ -248,7 +257,29 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
     // L'interval est géré par le useEffect [speed, running, tick] ci-dessous
   };
 
-  const pause = () => { setRunning(false); clearInterval(timerRef.current); };
+  // Flush les compteurs de règles vers Supabase
+  const flushRuleStats = useCallback(async () => {
+    const hits = { ...ruleHitsRef.current };
+    ruleHitsRef.current = {};
+    for (const [id, { triggered, blocked, base }] of Object.entries(hits)) {
+      supabase.from('rules').update({
+        triggered: (base.triggered || 0) + triggered,
+        blocked:   (base.blocked  || 0) + blocked,
+      }).eq('id', id).then(() => {});
+      // Met à jour la ref locale pour les prochains flush de la même session
+      base.triggered = (base.triggered || 0) + triggered;
+      base.blocked   = (base.blocked  || 0) + blocked;
+    }
+  }, []);
+
+  // Flush toutes les 30 secondes pendant le run
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(flushRuleStats, 30000);
+    return () => clearInterval(id);
+  }, [running, flushRuleStats]);
+
+  const pause = () => { setRunning(false); clearInterval(timerRef.current); flushRuleStats(); };
 
   const reset = () => {
     pause();
@@ -256,6 +287,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
     seqRef.current   = null;
     feedRef.current  = [];
     statsRef.current = { total:0, legit:0, alerts:0, blocked:0, simbox:0, wangiri:0, irsf:0, ato:0 };
+    ruleHitsRef.current = {};
     setFeed([]);
     setStats({ ...statsRef.current });
     setBatchProgress(0);
