@@ -70,7 +70,7 @@ function AppInner() {
   const { operators: supabaseOperators, setOperators, createOperator, updateOperator } = useOperators();
   const { users: supabaseUsers, setUsers, createUser, updateUser } = useUsers();
   const { alerts, setAlerts, updateAlertStatus, assignAlert } = useAlerts(null);
-  const { rules, setRules, createRule, updateRule, toggleRule, deleteRule } = useRules();
+  const { rules, setRules, createRule, updateRule, toggleRule, deleteRule, refetch: refetchRules } = useRules();
   const { blockings, setBlockings, createBlocking, unblock, reblock } = useBlockings(null);
   const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(null);
   const { complaints, setComplaints } = useComplaints(null);
@@ -180,7 +180,7 @@ function AppInner() {
       {page === "ai"         && <AIAnalysis {...sharedProps} />}
       {page === "billing"       && <Billing      {...sharedProps} />}
       {page === "distributors"  && <Distributors {...sharedProps} />}
-      {page === "simulator"     && <CdrSimulator rules={rules} currentOperator={currentOperator} />}
+      {page === "simulator"     && <CdrSimulator rules={rules} currentOperator={currentOperator} refetchRules={refetchRules} />}
       {page === "rules_review"  && <RulesReview rules={rules} />}
     </Layout>
   );

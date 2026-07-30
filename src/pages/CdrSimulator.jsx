@@ -134,7 +134,7 @@ function StatsPanel({ stats }) {
   );
 }
 
-export default function CdrSimulator({ rules = [], addAlert, currentOperator }) {
+export default function CdrSimulator({ rules = [], addAlert, currentOperator, refetchRules }) {
   const [running,   setRunning]   = useState(false);
   const [feed,      setFeed]      = useState([]);
   const [stats,     setStats]     = useState({ total:0, legit:0, alerts:0, blocked:0, simbox:0, wangiri:0, irsf:0, ato:0 });
@@ -262,16 +262,19 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator }) 
   const flushRuleStats = useCallback(async () => {
     const hits = { ...ruleHitsRef.current };
     ruleHitsRef.current = {};
-    for (const [id, { triggered, blocked, base }] of Object.entries(hits)) {
-      supabase.from('rules').update({
-        triggered: (base.triggered || 0) + triggered,
-        blocked:   (base.blocked  || 0) + blocked,
-      }).eq('id', id).then(() => {});
-      // Met à jour la ref locale pour les prochains flush de la même session
+    const entries = Object.entries(hits);
+    if (entries.length === 0) return;
+    await Promise.all(entries.map(([id, { triggered, blocked, base }]) => {
       base.triggered = (base.triggered || 0) + triggered;
       base.blocked   = (base.blocked  || 0) + blocked;
-    }
-  }, []);
+      return supabase.from('rules').update({
+        triggered: base.triggered,
+        blocked:   base.blocked,
+      }).eq('id', id);
+    }));
+    // Forcer un re-fetch des règles dans App pour mettre à jour Perf. Règles
+    if (refetchRules) await refetchRules();
+  }, [refetchRules]);
 
   // Flush toutes les 30 secondes pendant le run
   useEffect(() => {
