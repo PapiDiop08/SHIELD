@@ -241,7 +241,7 @@ export default function CdrSimulator({ rules = [], addAlert }) {
     if (running) return;
     seqRef.current = createBatchSequence();
     setRunning(true);
-    timerRef.current = setInterval(tick, speed);
+    // L'interval est géré par le useEffect [speed, running, tick] ci-dessous
   };
 
   const pause = () => { setRunning(false); clearInterval(timerRef.current); };

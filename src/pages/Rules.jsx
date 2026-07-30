@@ -165,7 +165,7 @@ function ListDropdown({ value, onChange }) {
 
 // ── RuleForm — reçoit udfFields en prop ──────────────────────────────────
 function RuleForm({ initial, onSave, onCancel, cases, udfFields }) {
-  const [form, setForm] = useState(initial || { name: "", type: ALL_FRAUD_TYPES[0], severity: "high", action: "block", scope: "global", caseId: null, conditions: [] });
+  const [form, setForm] = useState(initial || { name: "", type: ALL_FRAUD_TYPES[0], severity: "high", action: "block", scope: "telco", caseId: null, conditions: [] });
   function addCond() { setForm(f => ({ ...f, conditions: [...f.conditions, { field: "call_out_count", comparator: ">", value: "", logic: "ET" }] })); }
   function updCond(i, k, v) { setForm(f => { const c = [...f.conditions]; c[i] = { ...c[i], [k]: v }; return { ...f, conditions: c }; }); }
   function delCond(i) { setForm(f => ({ ...f, conditions: f.conditions.filter((_, idx) => idx !== i) })); }
@@ -303,7 +303,8 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
       setEditRule(null);
     } else {
       if (createRule) {
-        const { data, error } = await createRule(form, currentUser?.id, null);
+        const { data, error } = await createRule({ ...form, scope: form.scope || 'telco' });
+        if (error) { alert("Erreur création règle : " + error.message); return; }
         if (!error) { addLog("CREATE_RULE", "rule", data?.[0]?.id, `Création '${form.name}'`, "Règles"); setShowBuilder(false); }
       } else {
         const r = { id: Date.now(), ...form, triggered: 0, blocked: 0, date: new Date().toISOString().slice(0, 10), active: true };

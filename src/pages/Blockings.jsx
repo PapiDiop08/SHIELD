@@ -3,7 +3,7 @@ import { C } from "../theme.js";
 import { Card, Badge, Btn, SectionHeader, SearchInput, Select, Modal, Avatar, ConfirmModal } from "../components.jsx";
 import { useAuth } from "../AuthContext.jsx";
 
-export default function Blockings({ blockings, setBlockings, blacklist, setBlacklist, setSimProfile, users, operators, addLog }) {
+export default function Blockings({ blockings, setBlockings, blacklist, setBlacklist, setSimProfile, users, operators, addLog, createBlocking, unblock, reblock, currentOperator }) {
   const { currentUser, can, isGFM } = useAuth();
   const [search, setSearch] = useState("");
   const [filterOp, setFilterOp] = useState("all");
@@ -36,42 +36,50 @@ export default function Blockings({ blockings, setBlockings, blacklist, setBlack
 
   const today = new Date().toISOString().slice(0,10);
   const month = new Date().toISOString().slice(0,7);
-  const statsToday = blockings.filter(b => b.date?.startsWith(today) && b.active).length;
-  const statsMonth = blockings.filter(b => b.date?.startsWith(month) && b.active).length;
-  const statsTotal = blockings.filter(b => b.active).length;
-  const statsInactive = blockings.filter(b => !b.active).length;
+  const safeBlockings = blockings || [];
+  const statsToday    = safeBlockings.filter(b => (b.date||b.created_at||"").startsWith(today) && b.active).length;
+  const statsMonth    = safeBlockings.filter(b => (b.date||b.created_at||"").startsWith(month) && b.active).length;
+  const statsTotal    = safeBlockings.filter(b => b.active).length;
+  const statsInactive = safeBlockings.filter(b => !b.active).length;
 
-  function doUnblock(b) {
-    setBlockings(p => p.map(x => x.id === b.id ? {...x, active:false} : x));
+  async function doUnblock(b) {
+    await unblock?.(b.id);
     addLog?.("UNBLOCK_SIM","blocking",b.id,`Déblocage ${b.msisdn}`,"Blocages");
     showToast(`${b.msisdn} débloquée`, C.success);
   }
 
-  function doReblock(b) {
-    setBlockings(p => p.map(x => x.id === b.id ? {...x, active:true} : x));
+  async function doReblock(b) {
+    await reblock?.(b.id);
     addLog?.("REBLOCK_SIM","blocking",b.id,`Re-blocage ${b.msisdn}`,"Blocages");
     showToast(`${b.msisdn} re-bloquée`, C.danger);
   }
 
-  function addBlocking() {
-    const b = { id:`b${Date.now()}`, msisdn:addForm.msisdn, imei:"", imsi:"", cellId:"", operator:addForm.operator, blockedBy:currentUser?.id, blockerName:currentUser?.name, reason:addForm.reason, source:addForm.source, interOpSource:addForm.interOpSource||null, notes:addForm.notes||null, date:new Date().toISOString().slice(0,19).replace("T"," "), active:true, autoFlagged:[] };
-    setBlockings(p => [b,...p]);
+  async function addBlocking() {
+    const { data, error } = await (createBlocking?.({
+      msisdn: addForm.msisdn, reason: addForm.reason,
+      source: addForm.source, interOpSource: addForm.interOpSource||null,
+      notes: addForm.notes||null,
+    }, currentOperator?.id || null) || Promise.resolve({ data: null, error: null }));
+    if (error) { showToast("Erreur : " + error.message, C.danger); return; }
     setBlacklist(p => [{id:Date.now(),list:"blacklist",type:"MSISDN",value:addForm.msisdn,reason:addForm.reason,addedBy:currentUser?.id,date:new Date().toISOString().slice(0,10),active:true,matches:0,lastMatch:null},...p]);
-    addLog?.("BLOCK_SIM","blocking",b.id,`Blocage ${addForm.msisdn} — ${addForm.reason}`,"Blocages");
+    addLog?.("BLOCK_SIM","blocking",data?.id||null,`Blocage ${addForm.msisdn} — ${addForm.reason}`,"Blocages");
     setShowAdd(false);
     setAddForm({msisdn:"",reason:"",source:"analyst",operator:currentUser?.operator||"Partner 1",notes:"",interOpSource:""});
-    showToast(`${b.msisdn} bloquée`, C.danger);
+    showToast(`${addForm.msisdn} bloquée`, C.danger);
   }
 
-  function importBatch() {
+  async function importBatch() {
     const lines = importRaw.split("\n").map(l=>l.trim()).filter(Boolean);
-    lines.forEach((msisdn,i) => {
-      const b = {id:`b${Date.now()}${i}`,msisdn,imei:"",imsi:"",cellId:"",operator:addForm.operator,blockedBy:currentUser?.id,blockerName:currentUser?.name,reason:addForm.reason||"Import batch",source:addForm.source,date:new Date().toISOString().slice(0,19).replace("T"," "),active:true,autoFlagged:[]};
-      setBlockings(p => [b,...p]);
-    });
-    addLog?.("IMPORT_BLOCKINGS","blocking",null,`Import ${lines.length} blocages`,"Blocages");
+    let ok = 0;
+    for (const msisdn of lines) {
+      const { error } = await (createBlocking?.({
+        msisdn, reason: addForm.reason||"Import batch", source: addForm.source,
+      }, currentOperator?.id || null) || Promise.resolve({ error: null }));
+      if (!error) ok++;
+    }
+    addLog?.("IMPORT_BLOCKINGS","blocking",null,`Import ${ok}/${lines.length} blocages`,"Blocages");
     setShowImport(false); setImportRaw("");
-    showToast(`${lines.length} SIMs bloquées`, C.danger);
+    showToast(`${ok} SIMs bloquées`, C.danger);
   }
 
   const sourceLabel = { shield_auto:"BOT Auto", analyst:"USR Analyste", inter_operator:"Sync Inter-op" };

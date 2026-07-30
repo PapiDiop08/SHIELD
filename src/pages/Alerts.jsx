@@ -325,7 +325,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
                 </td></tr>
               )}
               {filtered.map(a => {
-                const assignedUser = users.find(u => u.id === a.assignedTo);
+                const assignedUser = (users||[]).find(u => u.id === a.assignedTo);
                 const isSel = selected.includes(a.id);
                 const dateDisplay = formatDate(a.createdAt || a.detected_at);
                 return (

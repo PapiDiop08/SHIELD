@@ -61,7 +61,7 @@ function LoadingScreen() {
 }
 
 function AppInner() {
-  const { currentUser, addLog, isGFM } = useAuth();
+  const { currentUser, addLog, isGFM, authLoading } = useAuth();
   const [page, setPage] = useState("dashboard");
   const [simProfile, setSimProfile] = useState(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
@@ -103,6 +103,8 @@ function AppInner() {
   // Simulation désactivée — les alertes viennent des vrais CDR via FastAPI
   const [simActive, setSimActive] = useState(false);
 
+  // ── Chargement session auth ───────────────────────────────────────────────
+  if (authLoading) return <LoadingScreen />;
   // ── Pas connecté → Login ──────────────────────────────────────────────────
   if (!currentUser) return <Login />;
 
@@ -168,7 +170,7 @@ function AppInner() {
       {page === "cells"      && <Cells      {...sharedProps} />}
       {page === "complaints" && <Complaints {...sharedProps} />}
       {page === "reports"    && <Reports    {...sharedProps} cases={[]} />}
-      {page === "logs"       && <Logs       logs={[]} addLog={addLogEnhanced} users={users} />}
+      {page === "logs"       && <Logs       addLog={addLogEnhanced} users={users} />}
       {page === "admin"      && <Admin      {...sharedProps} />}
       {page === "udf"        && <UDFManager addLog={addLogEnhanced} />}
       {page === "settings"   && <Settings   {...sharedProps} />}

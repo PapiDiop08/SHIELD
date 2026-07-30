@@ -174,8 +174,8 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
   }
 
   // complaints vient des props — chargé depuis AAR DB via useComplaints dans App.jsx OK
-  const tags     = ["Tous", ...new Set(complaints.map(c => c.tag))];
-  const filtered = filterTag === "Tous" ? complaints : (complaints||[]).filter(c => c.tag === filterTag);
+  const tags     = ["Tous", ...new Set((complaints||[]).map(c => c.tag))];
+  const filtered = filterTag === "Tous" ? (complaints||[]) : (complaints||[]).filter(c => c.tag === filterTag);
 
   async function doGroupAction(action) {
     const targets = (complaints||[]).filter(c => selected.includes(c.id));

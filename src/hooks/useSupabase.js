@@ -86,7 +86,7 @@ export function useUsers() {
         id: u.id, name: u.name, email: u.email, role: u.role,
         operator: u.operator_id, operatorId: u.operator_id,
         active: u.active, lastLogin: u.last_login || '—',
-        avatar: u.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase(),
+        avatar: (u.name || 'AA').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase(),
         createdAt: u.created_at?.slice(0,10),
       })));
     }
