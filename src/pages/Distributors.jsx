@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { C } from "../theme.js";
 import { Card, Badge, Btn, SectionHeader, SearchInput, Select, TableWrap, EmptyState, Modal } from "../components.jsx";
 import { supabase } from "../supabase.js";
+import { useSimProfiles } from "../hooks/useSupabase.js";
 
 const fmtNum = (n) => (n || 0).toLocaleString("fr-FR");
 
@@ -19,30 +20,26 @@ const riskLabel = (r) => ({ critical: "Critique", high: "Élevé", medium: "Moye
 const typeLabel = (t) => t === "individual" ? "Individuel" : t === "small_business" ? "Petite entreprise" : t || "—";
 const typeColor = (t) => t === "individual" ? C.sky : t === "small_business" ? C.purple : C.muted;
 
-// ── Generate mock SIMs for a distributor ─────────────────────────────────────
-function generateSims(distributor) {
-  const count = distributor.sims_sold || Math.floor(Math.random() * 50 + 10);
-  return Array.from({ length: count }, (_, i) => ({
-    id: `SIM-${(distributor.id?.slice(0, 4) || "D001")}-${String(i + 1).padStart(3, "0")}`,
-    msisdn: `+221 7${Math.floor(Math.random() * 9 + 1)} ${String(Math.floor(Math.random() * 9000000 + 1000000)).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/, "$1 $2 $3 $4")}`,
-    status: i < (distributor.fraud_sims || 0) ? "blocked" : Math.random() > 0.85 ? "flagged" : "active",
-    activatedAt: new Date(Date.now() - Math.random() * 90 * 24 * 3600 * 1000).toLocaleDateString("fr-FR"),
-    calls: Math.floor(Math.random() * 500),
-    riskScore: i < (distributor.fraud_sims || 0) ? Math.floor(Math.random() * 30 + 70) : Math.floor(Math.random() * 40),
-  }));
-}
-
 const simStatusColor = (s) => s === "blocked" ? C.danger : s === "flagged" ? C.warning : C.success;
 const simStatusLabel = (s) => s === "blocked" ? "Bloquée" : s === "flagged" ? "Flaggée" : "Active";
 
 // ── SIMs Tab ──────────────────────────────────────────────────────────────────
 function SimsTab({ dist }) {
-  const [sims, setSims] = useState(() => generateSims(dist));
+  const { sims: realSims, loading, error, updating, updateStatus, updateAllStatus } = useSimProfiles(dist.id);
   const [simSearch, setSimSearch] = useState("");
-  const [blocking, setBlocking] = useState(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const sims = realSims.map(s => ({
+    id: s.id,
+    msisdn: s.msisdn,
+    status: s.status === "suspended" ? "flagged" : s.status === "swapped" ? "flagged" : s.status,
+    activatedAt: s.activated_at ? new Date(s.activated_at).toLocaleDateString("fr-FR") : "—",
+    calls: s.calls_24h || 0,
+    riskScore: s.risk_score || 0,
+  }));
 
   const filtered = simSearch
-    ? sims.filter(s => s.msisdn.replace(/\s/g, "").includes(simSearch.replace(/\s/g, "")) || s.id.toLowerCase().includes(simSearch.toLowerCase()))
+    ? sims.filter(s => (s.msisdn || "").replace(/\s/g, "").includes(simSearch.replace(/\s/g, "")) || s.id.toLowerCase().includes(simSearch.toLowerCase()))
     : sims;
 
   const stats = {
@@ -53,11 +50,10 @@ function SimsTab({ dist }) {
   };
 
   async function blockSim(sim) {
-    setBlocking(sim.id);
     try {
       await supabase.from("blockings").insert({
         id: crypto.randomUUID(),
-        msisdn: sim.msisdn.replace(/\s/g, ""),
+        msisdn: (sim.msisdn || "").replace(/\s/g, ""),
         reason: `Bloqué depuis distributeur ${dist.name}`,
         source: "distributor_action",
         active: true,
@@ -65,21 +61,21 @@ function SimsTab({ dist }) {
         created_at: new Date().toISOString(),
       });
     } catch (_) { /* best effort */ }
-    setSims(prev => prev.map(s => s.id === sim.id ? { ...s, status: "blocked" } : s));
-    setBlocking(null);
+    await updateStatus(sim.id, "blocked");
   }
 
   async function unblockSim(sim) {
-    setSims(prev => prev.map(s => s.id === sim.id ? { ...s, status: "active" } : s));
+    await updateStatus(sim.id, "active");
   }
 
   async function blockAll() {
+    setBulkBusy(true);
     const toBlock = sims.filter(s => s.status !== "blocked");
     for (const sim of toBlock) {
       try {
         await supabase.from("blockings").insert({
           id: crypto.randomUUID(),
-          msisdn: sim.msisdn.replace(/\s/g, ""),
+          msisdn: (sim.msisdn || "").replace(/\s/g, ""),
           reason: `Blocage masse — distributeur ${dist.name}`,
           source: "distributor_action",
           active: true,
@@ -88,16 +84,28 @@ function SimsTab({ dist }) {
         });
       } catch (_) { /* best effort */ }
     }
-    setSims(prev => prev.map(s => ({ ...s, status: "blocked" })));
+    await updateAllStatus("blocked");
+    setBulkBusy(false);
   }
 
-  function unblockAll() {
-    setSims(prev => prev.map(s => ({ ...s, status: "active" })));
+  async function unblockAll() {
+    setBulkBusy(true);
+    await updateAllStatus("active");
+    setBulkBusy(false);
+  }
+
+  if (loading) {
+    return <div style={{ padding: 24, textAlign: "center", color: C.muted, fontSize: 12 }}>Chargement des SIM…</div>;
   }
 
   return (
     <div>
-      {/* Stats rapides */}
+      {error && (
+        <div style={{ padding: "8px 10px", marginBottom: 10, borderRadius: 8, background: C.danger + "15", color: C.danger, fontSize: 11, fontWeight: 600 }}>
+          Erreur : {error}
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
         {[
           { label: "Total", value: stats.total, color: C.navy },
@@ -112,75 +120,85 @@ function SimsTab({ dist }) {
         ))}
       </div>
 
-      {/* Actions masse */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <button
-          onClick={blockAll}
-          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "none", background: C.danger, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-          Tout bloquer
-        </button>
-        <button
-          onClick={unblockAll}
-          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "none", background: C.success, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-          Tout débloquer
-        </button>
-      </div>
-
-      {/* Recherche MSISDN */}
-      <input
-        value={simSearch}
-        onChange={e => setSimSearch(e.target.value)}
-        placeholder="Rechercher MSISDN ou ID SIM..."
-        style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.mutedL}`, fontSize: 12, color: C.text, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
-      />
-
-      {/* Tableau SIMs */}
-      <div style={{ border: `1px solid ${C.mutedL}`, borderRadius: 10, overflow: "hidden" }}>
-        {/* Header */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "8px 10px", background: C.bg, fontSize: 9, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
-          <div>MSISDN</div>
-          <div>Statut</div>
-          <div>Risque</div>
-          <div>Appels</div>
-          <div>Activée</div>
-          <div>Action</div>
-        </div>
-
-        {filtered.length === 0 ? (
-          <div style={{ padding: "20px", textAlign: "center", color: C.muted, fontSize: 12 }}>Aucune SIM trouvée</div>
-        ) : filtered.map(sim => (
-          <div key={sim.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "9px 10px", borderTop: `1px solid ${C.mutedL}`, alignItems: "center", fontSize: 11 }}>
-            <div>
-              <div style={{ fontFamily: "monospace", fontWeight: 700, color: C.navy, fontSize: 10 }}>{sim.msisdn}</div>
-              <div style={{ fontSize: 9, color: C.muted }}>{sim.id}</div>
-            </div>
-            <div>
-              <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: 6, background: simStatusColor(sim.status) + "20", color: simStatusColor(sim.status), fontSize: 10, fontWeight: 700 }}>
-                {simStatusLabel(sim.status)}
-              </span>
-            </div>
-            <div style={{ fontWeight: 700, color: riskColor(toRisk(sim.riskScore)) }}>{sim.riskScore}</div>
-            <div style={{ color: C.textL }}>{fmtNum(sim.calls)}</div>
-            <div style={{ color: C.muted, fontSize: 10 }}>{sim.activatedAt}</div>
-            <div>
-              {sim.status === "blocked" ? (
-                <button
-                  onClick={() => unblockSim(sim)}
-                  style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.success + "20", color: C.success, fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
-                  Débloquer
-                </button>
-              ) : (
-                <button
-                  disabled={blocking === sim.id}
-                  onClick={() => blockSim(sim)}
-                  style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.danger + "20", color: C.danger, fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: blocking === sim.id ? 0.6 : 1 }}>
-                  {blocking === sim.id ? "…" : "Bloquer"}
-                </button>
-              )}
-            </div>
+      {sims.length === 0 ? (
+        <EmptyState label="Aucune SIM liée à ce distributeur dans sim_profiles" />
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <button
+              onClick={blockAll}
+              disabled={bulkBusy}
+              style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "none", background: C.danger, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: bulkBusy ? 0.6 : 1 }}>
+              {bulkBusy ? "…" : "Tout bloquer"}
+            </button>
+            <button
+              onClick={unblockAll}
+              disabled={bulkBusy}
+              style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "none", background: C.success, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", opacity: bulkBusy ? 0.6 : 1 }}>
+              {bulkBusy ? "…" : "Tout débloquer"}
+            </button>
           </div>
-        ))}
-      </div>
+
+          <input
+            value={simSearch}
+            onChange={e => setSimSearch(e.target.value)}
+            placeholder="Rechercher MSISDN ou ID SIM..."
+            style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.mutedL}`, fontSize: 12, color: C.text, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
+          />
+
+          <div style={{ border: `1px solid ${C.mutedL}`, borderRadius: 10, overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "8px 10px", background: C.bg, fontSize: 9, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <div>MSISDN</div>
+              <div>Statut</div>
+              <div>Risque</div>
+              <div>Appels</div>
+              <div>Activée</div>
+              <div>Action</div>
+            </div>
+
+            {filtered.length === 0 ? (
+              <div style={{ padding: "20px", textAlign: "center", color: C.muted, fontSize: 12 }}>Aucune SIM trouvée</div>
+            ) : filtered.slice(0, 200).map(sim => (
+              <div key={sim.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "9px 10px", borderTop: `1px solid ${C.mutedL}`, alignItems: "center", fontSize: 11 }}>
+                <div>
+                  <div style={{ fontFamily: "monospace", fontWeight: 700, color: C.navy, fontSize: 10 }}>{sim.msisdn}</div>
+                  <div style={{ fontSize: 9, color: C.muted }}>{sim.id}</div>
+                </div>
+                <div>
+                  <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: 6, background: simStatusColor(sim.status) + "20", color: simStatusColor(sim.status), fontSize: 10, fontWeight: 700 }}>
+                    {simStatusLabel(sim.status)}
+                  </span>
+                </div>
+                <div style={{ fontWeight: 700, color: riskColor(toRisk(sim.riskScore)) }}>{sim.riskScore}</div>
+                <div style={{ color: C.textL }}>{fmtNum(sim.calls)}</div>
+                <div style={{ color: C.muted, fontSize: 10 }}>{sim.activatedAt}</div>
+                <div>
+                  {sim.status === "blocked" ? (
+                    <button
+                      disabled={updating === sim.id}
+                      onClick={() => unblockSim(sim)}
+                      style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.success + "20", color: C.success, fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: updating === sim.id ? 0.6 : 1 }}>
+                      {updating === sim.id ? "…" : "Débloquer"}
+                    </button>
+                  ) : (
+                    <button
+                      disabled={updating === sim.id}
+                      onClick={() => blockSim(sim)}
+                      style={{ padding: "3px 8px", borderRadius: 6, border: "none", background: C.danger + "20", color: C.danger, fontSize: 10, fontWeight: 700, cursor: "pointer", opacity: updating === sim.id ? 0.6 : 1 }}>
+                      {updating === sim.id ? "…" : "Bloquer"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {filtered.length > 200 && (
+            <div style={{ marginTop: 8, fontSize: 10, color: C.muted, textAlign: "center" }}>
+              {filtered.length} SIM au total — 200 premières affichées (affinez la recherche pour voir les autres)
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

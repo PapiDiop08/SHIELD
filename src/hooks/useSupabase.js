@@ -648,6 +648,75 @@ export function useSimProfile(msisdn) {
 
 
 // ─────────────────────────────────────────────────────────────
+// useSimProfiles — liste des SIM réelles d'un distributeur (sim_profiles)
+// ─────────────────────────────────────────────────────────────
+export function useSimProfiles(distributorId) {
+  const [sims, setSims] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(null);
+
+  const fetch = useCallback(async () => {
+    if (!distributorId) { setSims([]); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error: err } = await supabase
+        .from('sim_profiles')
+        .select('id, msisdn, imsi, imei, status, risk_score, swap_count, activated_at, calls_24h, distributor_id')
+        .eq('distributor_id', distributorId)
+        .order('risk_score', { ascending: false })
+        .limit(2000);
+      if (err) throw err;
+      setSims(data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [distributorId]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const updateStatus = useCallback(async (simId, status) => {
+    setUpdating(simId);
+    try {
+      const { error: err } = await supabase
+        .from('sim_profiles')
+        .update({ status })
+        .eq('id', simId);
+      if (err) throw err;
+      setSims(prev => prev.map(s => s.id === simId ? { ...s, status } : s));
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setUpdating(null);
+    }
+  }, []);
+
+  const updateAllStatus = useCallback(async (status) => {
+    if (!distributorId) return false;
+    try {
+      const { error: err } = await supabase
+        .from('sim_profiles')
+        .update({ status })
+        .eq('distributor_id', distributorId);
+      if (err) throw err;
+      setSims(prev => prev.map(s => ({ ...s, status })));
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  }, [distributorId]);
+
+  return { sims, loading, error, updating, updateStatus, updateAllStatus, refetch: fetch };
+}
+
+
+// ─────────────────────────────────────────────────────────────
 // useCases — CRUD complet cases
 // ─────────────────────────────────────────────────────────────
 export function useCases(operatorId = null) {
