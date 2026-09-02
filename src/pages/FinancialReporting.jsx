@@ -23,6 +23,21 @@ function getFraudValue(type) {
   return FRAUD_VALUE[type] || FRAUD_VALUE["Default"];
 }
 
+function exportCSV(byType, period) {
+  const header = "Type de fraude,Total,Bloquées,Faux positifs,Nettoyées,Économies estimées (XOF)\n";
+  const rows = byType.map(t => [t.type, t.total, t.blocked, t.fp, t.cleared, t.saved].join(",")).join("\n");
+  const csv = header + rows;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rapport_financier_${period}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 const COLORS_LIST = [C.red, C.sky, C.teal, C.warning, C.purple, C.success, C.navy, "#F97316", "#EC4899", "#06B6D4"];
 
 export default function FinancialReporting({ alerts, blockings, rules, cases }) {
@@ -68,16 +83,26 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
     return Object.values(map).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
   }, [filteredAlerts]);
 
-  // ── Trend data ───────────────────────────────────────────────────────────
-  const trendData = [
-    { d: "J-6", detections: 42, blocked: 38, saved: 1240000 },
-    { d: "J-5", detections: 67, blocked: 61, saved: 1890000 },
-    { d: "J-4", detections: 38, blocked: 35, saved: 980000 },
-    { d: "J-3", detections: 89, blocked: 82, saved: 2340000 },
-    { d: "J-2", detections: 54, blocked: 49, saved: 1560000 },
-    { d: "J-1", detections: 71, blocked: 65, saved: 1980000 },
-    { d: "Auj", detections: filteredAlerts.length, blocked: blockedAlerts.length, saved: totalSaved },
-  ];
+  // ── Trend data — 7 derniers jours réels, calculés depuis filteredAlerts ──
+  const trendData = useMemo(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const label = i === 0 ? "Auj" : d.toLocaleDateString("fr-FR", { weekday: "short" });
+      days.push({ key, d: label });
+    }
+    const map = {};
+    days.forEach(day => { map[day.key] = { d: day.d, detections: 0, blocked: 0, saved: 0 }; });
+    filteredAlerts.forEach(a => {
+      const dateStr = (a.detected_at || a.date || a.created_at || "").slice(0, 10);
+      if (!map[dateStr]) return;
+      map[dateStr].detections++;
+      if (a.status === "blocked") { map[dateStr].blocked++; map[dateStr].saved += getFraudValue(a.type); }
+    });
+    return days.map(day => map[day.key]);
+  }, [filteredAlerts]);
 
   const pieData = byType.slice(0, 6).map((t, i) => ({ name: t.type, value: t.total, color: COLORS_LIST[i] }));
 
@@ -91,7 +116,7 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
   return (
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader title="Financial Reporting" sub="Analyse financière et statistiques par type de fraude"
-        action={<Btn variant="ghost">Import Exporter PDF</Btn>} />
+        action={<Btn variant="ghost" onClick={() => exportCSV(byType, period)}>Exporter CSV</Btn>} />
 
       {/* Filters */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>

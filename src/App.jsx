@@ -20,6 +20,7 @@ import AIAnalysis from "./pages/AIAnalysis.jsx";
 import Billing from "./pages/Billing.jsx";
 import Distributors from "./pages/Distributors.jsx";
 import SimManagement from "./pages/SimManagement.jsx";
+import FinancialReporting from "./pages/FinancialReporting.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
 import SimProfile from "./pages/SimProfile.jsx";
 import CdrSimulator from "./pages/CdrSimulator.jsx";

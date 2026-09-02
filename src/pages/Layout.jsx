@@ -28,6 +28,7 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
     ]},
     { label: "Analyse", items: [
       { key: "reports",      label: "Rapports",      icon: "reports" },
+      { key: "financial",    label: "Rapport financier", icon: "scoring" },
       { key: "rules_review", label: "Perf. Règles",  icon: "scoring" },
       { key: "logs",         label: "Audit Log",     icon: "logs" },
     ]},

@@ -23,6 +23,21 @@ const FRAUD_VALUE = {
 };
 function getFraudValue(type) { return FRAUD_VALUE[type] || 25000; }
 
+function exportCSV(byType, period) {
+  const header = "Type de fraude,Total,Bloquées,Faux positifs,Nettoyées,Économies estimées (XOF)\n";
+  const rows = byType.map(t => [t.type, t.total, t.blocked, t.fp, t.cleared, t.saved].join(",")).join("\n");
+  const csv = header + rows;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rapport_${period}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 const COLORS = [C.danger, C.sky, C.teal, C.warning, C.purple, C.success, C.navy, "#F97316", "#EC4899"];
 
 function inPeriod(dateStr, period) {
@@ -137,7 +152,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
       <SectionHeader
         title="Rapports & Analyse"
         sub="Statistiques calculées depuis les alertes en temps réel"
-        action={<Btn variant="ghost">Import Exporter PDF</Btn>}
+        action={<Btn variant="ghost" onClick={() => exportCSV(byType, period)}>Exporter CSV</Btn>}
       />
 
       {/* Filtres */}
