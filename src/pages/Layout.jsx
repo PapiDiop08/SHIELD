@@ -145,8 +145,10 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
       </div>
 
       {/* Contenu */}
-      <div style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
-        {children}
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "auto", minWidth: 0 }}>
+        <div style={{ minWidth: 1100 }}>
+          {children}
+        </div>
       </div>
     </div>
   );
