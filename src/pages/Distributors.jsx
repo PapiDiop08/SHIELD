@@ -24,7 +24,7 @@ const simStatusColor = (s) => s === "blocked" ? C.danger : s === "flagged" ? C.w
 const simStatusLabel = (s) => s === "blocked" ? "Bloquée" : s === "flagged" ? "Flaggée" : "Active";
 
 // ── SIMs Tab ──────────────────────────────────────────────────────────────────
-function SimsTab({ dist }) {
+function SimsTab({ dist, setSimProfile }) {
   const { sims: realSims, loading, error, updating, updateStatus, updateAllStatus } = useSimProfiles(dist.id);
   const [simSearch, setSimSearch] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -160,8 +160,12 @@ function SimsTab({ dist }) {
               <div style={{ padding: "20px", textAlign: "center", color: C.muted, fontSize: 12 }}>Aucune SIM trouvée</div>
             ) : filtered.slice(0, 200).map(sim => (
               <div key={sim.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "9px 10px", borderTop: `1px solid ${C.mutedL}`, alignItems: "center", fontSize: 11 }}>
-                <div>
-                  <div style={{ fontFamily: "monospace", fontWeight: 700, color: C.navy, fontSize: 10 }}>{sim.msisdn}</div>
+                <div
+                  style={{ cursor: setSimProfile ? "pointer" : "default" }}
+                  onClick={() => setSimProfile && setSimProfile({ msisdn: sim.msisdn, score: sim.riskScore, fraudType: "Distributeur " + dist.name })}
+                  title={setSimProfile ? "Voir le profil SIM complet" : undefined}
+                >
+                  <div style={{ fontFamily: "monospace", fontWeight: 700, color: C.navy, fontSize: 10, textDecoration: setSimProfile ? "underline" : "none", textDecorationColor: C.mutedL }}>{sim.msisdn}</div>
                   <div style={{ fontSize: 9, color: C.muted }}>{sim.id}</div>
                 </div>
                 <div>
@@ -204,7 +208,7 @@ function SimsTab({ dist }) {
 }
 
 // ── Distributor Detail Panel ──────────────────────────────────────────────────
-function DistributorPanel({ dist, onClose, onFlag }) {
+function DistributorPanel({ dist, onClose, onFlag, setSimProfile }) {
   const [activeTab, setActiveTab] = useState("apercu");
   const risk = toRisk(dist.risk_score || 0);
   const fraudPct = dist.fraud_rate ? (dist.fraud_rate * 100).toFixed(1) : ((dist.fraud_sims || 0) / (dist.sims_sold || 1) * 100).toFixed(1);
@@ -310,14 +314,14 @@ function DistributorPanel({ dist, onClose, onFlag }) {
           </>
         )}
 
-        {activeTab === "sims" && <SimsTab dist={dist} />}
+        {activeTab === "sims" && <SimsTab dist={dist} setSimProfile={setSimProfile} />}
       </div>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function Distributors({ addLog, operators }) {
+export default function Distributors({ addLog, operators, setSimProfile }) {
   const [distributors, setDistributors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDist, setSelectedDist] = useState(null);
@@ -510,7 +514,7 @@ export default function Distributors({ addLog, operators }) {
       {selectedDist && (
         <>
           <div onClick={() => setSelectedDist(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 999 }} />
-          <DistributorPanel dist={selectedDist} onClose={() => setSelectedDist(null)} onFlag={handleFlag} />
+          <DistributorPanel dist={selectedDist} onClose={() => setSelectedDist(null)} onFlag={handleFlag} setSimProfile={setSimProfile} />
         </>
       )}
     </div>

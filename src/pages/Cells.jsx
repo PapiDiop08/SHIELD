@@ -108,7 +108,7 @@ function useCellSIMs(cellId) {
         return {
           msisdn: s.msisdn,
           imei: s.imei,
-          score: maxScore || Math.round(60 + Math.random() * 35),
+          score: maxScore, // score réel depuis alerts (score_simbox/wangiri/ato/irsf) — 0 si aucune alerte, jamais inventé
           callsOut: s.callsOut,
           sms: smsCount[s.msisdn] || 0,
           data: parseFloat((dataMB[s.msisdn] || 0).toFixed(1)),

@@ -717,6 +717,86 @@ export function useSimProfiles(distributorId) {
 
 
 // ─────────────────────────────────────────────────────────────
+// useSimProfilesSearch — recherche globale sim_profiles (toutes SIM, tous distributeurs)
+// ─────────────────────────────────────────────────────────────
+export function useSimProfilesSearch({ search = "", status = "all", operatorId = null, page = 0, pageSize = 50 } = {}) {
+  const [sims, setSims] = useState([]);
+  const [distributorNames, setDistributorNames] = useState({});
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(null);
+
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let q = supabase.from('sim_profiles').select('*', { count: 'exact' });
+      if (search) {
+        const s = search.replace(/\s/g, '');
+        q = q.or(`msisdn.ilike.%${s}%,id.ilike.%${search}%,imsi.ilike.%${search}%,imei.ilike.%${search}%`);
+      }
+      if (status !== 'all') q = q.eq('status', status);
+      if (operatorId) q = q.eq('operator_id', operatorId);
+      q = q.order('risk_score', { ascending: false }).range(page * pageSize, page * pageSize + pageSize - 1);
+
+      const { data, error: err, count } = await q;
+      if (err) throw err;
+      setSims(data || []);
+      setTotal(count || 0);
+
+      // Résoudre les noms de distributeurs pour affichage
+      const distIds = [...new Set((data || []).map(s => s.distributor_id).filter(Boolean))];
+      if (distIds.length > 0) {
+        const { data: dists } = await supabase.from('distributors').select('id, name').in('id', distIds);
+        const map = {};
+        (dists || []).forEach(d => { map[d.id] = d.name; });
+        setDistributorNames(map);
+      } else {
+        setDistributorNames({});
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, status, operatorId, page, pageSize]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+
+  const updateStatus = useCallback(async (simId, newStatus) => {
+    setUpdating(simId);
+    try {
+      const { error: err } = await supabase.from('sim_profiles').update({ status: newStatus }).eq('id', simId);
+      if (err) throw err;
+      setSims(prev => prev.map(s => s.id === simId ? { ...s, status: newStatus } : s));
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setUpdating(null);
+    }
+  }, []);
+
+  const bulkUpdateStatus = useCallback(async (simIds, newStatus) => {
+    if (!simIds.length) return false;
+    try {
+      const { error: err } = await supabase.from('sim_profiles').update({ status: newStatus }).in('id', simIds);
+      if (err) throw err;
+      setSims(prev => prev.map(s => simIds.includes(s.id) ? { ...s, status: newStatus } : s));
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  }, []);
+
+  return { sims, distributorNames, total, loading, error, updating, updateStatus, bulkUpdateStatus, refetch: fetch };
+}
+
+
+// ─────────────────────────────────────────────────────────────
 // useCases — CRUD complet cases
 // ─────────────────────────────────────────────────────────────
 export function useCases(operatorId = null) {

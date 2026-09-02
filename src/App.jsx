@@ -19,6 +19,7 @@ import Blockings from "./pages/Blockings.jsx";
 import AIAnalysis from "./pages/AIAnalysis.jsx";
 import Billing from "./pages/Billing.jsx";
 import Distributors from "./pages/Distributors.jsx";
+import SimManagement from "./pages/SimManagement.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
 import SimProfile from "./pages/SimProfile.jsx";
 import CdrSimulator from "./pages/CdrSimulator.jsx";
@@ -180,6 +181,7 @@ function AppInner() {
       {page === "ai"         && <AIAnalysis {...sharedProps} />}
       {page === "billing"       && <Billing      {...sharedProps} />}
       {page === "distributors"  && <Distributors {...sharedProps} />}
+      {page === "sim_management" && <SimManagement {...sharedProps} />}
       {page === "simulator"     && <CdrSimulator rules={rules} currentOperator={currentOperator} refetchRules={refetchRules} />}
       {page === "rules_review"  && <RulesReview rules={rules} />}
     </Layout>
