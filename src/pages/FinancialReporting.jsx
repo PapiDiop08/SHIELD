@@ -23,6 +23,17 @@ function getFraudValue(type) {
   return FRAUD_VALUE[type] || FRAUD_VALUE["Default"];
 }
 
+function inPeriod(dateStr, period) {
+  if (period === "all" || !dateStr) return true;
+  const d = new Date(dateStr), now = new Date();
+  if (period === "today")   return d.toDateString() === now.toDateString();
+  if (period === "week")    return (now - d) <= 7 * 864e5;
+  if (period === "month")   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  if (period === "quarter") return Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) && d.getFullYear() === now.getFullYear();
+  if (period === "year")    return d.getFullYear() === now.getFullYear();
+  return true;
+}
+
 function exportCSV(byType, period) {
   const header = "Type de fraude,Total,Bloquées,Faux positifs,Nettoyées,Économies estimées (XOF)\n";
   const rows = byType.map(t => [t.type, t.total, t.blocked, t.fp, t.cleared, t.saved].join(",")).join("\n");
@@ -48,8 +59,9 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
 
   // ── Filter alerts by period ──────────────────────────────────────────────
   const filteredAlerts = useMemo(() => {
-    let list = [...alerts];
+    let list = [...(alerts || [])];
     if (selectedType !== "all") list = list.filter(a => a.type === selectedType);
+    list = list.filter(a => inPeriod(a.createdAt, period));
     return list;
   }, [alerts, selectedType, period]);
 
@@ -96,7 +108,7 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
     const map = {};
     days.forEach(day => { map[day.key] = { d: day.d, detections: 0, blocked: 0, saved: 0 }; });
     filteredAlerts.forEach(a => {
-      const dateStr = (a.detected_at || a.date || a.created_at || "").slice(0, 10);
+      const dateStr = a.createdAt ? new Date(a.createdAt).toISOString().slice(0, 10) : "";
       if (!map[dateStr]) return;
       map[dateStr].detections++;
       if (a.status === "blocked") { map[dateStr].blocked++; map[dateStr].saved += getFraudValue(a.type); }
