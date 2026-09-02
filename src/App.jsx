@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component } from "react";
 import { AuthProvider, useAuth } from "./AuthContext.jsx";
 import Login from "./pages/Login.jsx";
 import Layout from "./pages/Layout.jsx";
@@ -31,7 +31,6 @@ import {
   useUsers, useComplaints, useControlLists, saveLogToSupabase
 } from "./hooks/useSupabase.js";
 
-import { MOCK_USERS, MOCK_OPERATORS } from "./mockData.js";
 import { ALL_FRAUD_TYPES } from "./theme.js";
 import { supabase } from "./supabase.js";
 
@@ -63,24 +62,53 @@ function LoadingScreen() {
   );
 }
 
+// ── Écran de garde-fou — données critiques absentes ou inaccessibles ─────
+// Remplace l'ancien fallback silencieux vers des données mock : si les
+// opérateurs ou utilisateurs réels ne peuvent pas être chargés depuis
+// Supabase, on affiche un diagnostic clair plutôt que de faire comme si
+// tout allait bien avec de fausses données.
+function DataErrorScreen({ issues, onRetry }) {
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#0D1B3E",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      flexDirection: "column", gap: 18, fontFamily: "'DM Sans','Segoe UI',sans-serif",
+      padding: 24, textAlign: "center",
+    }}>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#E85D20" strokeWidth="2">
+        <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <div style={{ color: "#fff", fontWeight: 800, fontSize: 18, maxWidth: 480 }}>Connexion aux données impossible</div>
+      <div style={{ color: "#8A9BB5", fontSize: 13, maxWidth: 480, lineHeight: 1.6 }}>
+        SHIELD n'affiche jamais de données fictives à la place de vraies données. Corrigez le point ci-dessous puis réessayez.
+      </div>
+      <div style={{ background: "rgba(232,93,32,0.1)", border: "1px solid rgba(232,93,32,0.35)", borderRadius: 10, padding: "14px 18px", maxWidth: 480, textAlign: "left" }}>
+        {issues.map((msg, i) => (
+          <div key={i} style={{ color: "#FFD9C2", fontSize: 12, marginBottom: i < issues.length - 1 ? 8 : 0 }}>• {msg}</div>
+        ))}
+      </div>
+      <button
+        onClick={onRetry}
+        style={{ marginTop: 4, padding: "9px 20px", borderRadius: 8, border: "none", background: "#E85D20", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+        Réessayer
+      </button>
+    </div>
+  );
+}
+
 function AppInner() {
   const { currentUser, addLog, isGFM, authLoading, logs } = useAuth();
   const [page, setPage] = useState("dashboard");
   const [simProfile, setSimProfile] = useState(null);
   const [showUserProfile, setShowUserProfile] = useState(false);
 
-  const { operators: supabaseOperators, setOperators, createOperator, updateOperator } = useOperators();
-  const { users: supabaseUsers, setUsers, createUser, updateUser } = useUsers();
+  const { operators, setOperators, loading: operatorsLoading, error: operatorsError, createOperator, updateOperator, refetch: refetchOperators } = useOperators();
+  const { users, setUsers, loading: usersLoading, error: usersError, createUser, updateUser, refetch: refetchUsers } = useUsers();
   const { alerts, setAlerts, updateAlertStatus, assignAlert } = useAlerts(null);
   const { rules, setRules, createRule, updateRule, toggleRule, deleteRule, refetch: refetchRules } = useRules();
   const { blockings, setBlockings, createBlocking, unblock, reblock } = useBlockings(null);
   const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(null);
   const { complaints, setComplaints } = useComplaints(null);
-
-  // ── Fallback : si AAR DB retourne vide, on utilise les MOCK_USERS/MOCK_OPERATORS
-  // Ça évite les pages blanches si la table users/operators est vide ou RLS bloquant
-  const users = supabaseUsers.length > 0 ? supabaseUsers : MOCK_USERS;
-  const operators = supabaseOperators.length > 0 ? supabaseOperators : MOCK_OPERATORS;
 
   // ── Filtre opérateur selon le compte connecté ────────────────────────────
   const currentOperator = operators.find(o =>
@@ -88,9 +116,23 @@ function AppInner() {
   );
   const operatorIdFilter = isGFM() ? null : currentOperator?.id;
 
-  // ── Attendre que les données essentielles soient prêtes ──────────────────
-  // On affiche l'écran de chargement seulement si on n'a ni données ni mock
-  const isReady = operators.length > 0;
+  // ── Garde-fou données critiques ───────────────────────────────────────────
+  // On attend la fin des deux chargements avant de décider quoi afficher :
+  // jamais de données fictives en remplacement — soit les vraies données sont
+  // là, soit on affiche un diagnostic clair (DataErrorScreen) plutôt que de
+  // faire semblant que tout va bien.
+  const dataLoading = operatorsLoading || usersLoading;
+  const dataIssues = [];
+  if (!operatorsLoading && operators.length === 0) {
+    dataIssues.push(operatorsError || "Aucun opérateur chargé.");
+  }
+  if (!usersLoading && users.length === 0) {
+    dataIssues.push(usersError || "Aucun utilisateur chargé.");
+  }
+  if (!isGFM() && !operatorsLoading && operators.length > 0 && !currentOperator) {
+    dataIssues.push(`Le compte connecté (${currentUser?.email || currentUser?.name || "?"}) n'est rattaché à aucun opérateur existant — vérifiez son champ operator_id.`);
+  }
+  const isReady = !dataLoading;
 
   const addLogEnhanced = (action, entity, entityId, detail, pg) => {
     const log = addLog(action, entity, entityId, detail, pg);
@@ -113,6 +155,11 @@ function AppInner() {
 
   // ── Chargement initial ────────────────────────────────────────────────────
   if (!isReady) return <LoadingScreen />;
+
+  // ── Garde-fou : données critiques manquantes → diagnostic, jamais de mock ──
+  if (dataIssues.length > 0) {
+    return <DataErrorScreen issues={dataIssues} onRetry={() => { refetchOperators(); refetchUsers(); }} />;
+  }
 
   // ── SimProfile ────────────────────────────────────────────────────────────
   if (simProfile) return (
@@ -190,6 +237,48 @@ function AppInner() {
   );
 }
 
+// ── Garde-fou global : capture toute erreur de rendu React ────────────────
+// Sans ceci, une exception dans un composant enfant (bug de code, donnée
+// inattendue) fait disparaître silencieusement toute la page — comme observé
+// une fois pendant le développement. Avec ceci, l'utilisateur voit un écran
+// clair au lieu d'un écran blanc, et peut revenir au dashboard sans recharger.
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("SHIELD crash capturé par ErrorBoundary:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          minHeight: "100vh", background: "#0D1B3E",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexDirection: "column", gap: 16, fontFamily: "'DM Sans','Segoe UI',sans-serif",
+          padding: 24, textAlign: "center",
+        }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#E85D20" strokeWidth="2">
+            <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div style={{ color: "#fff", fontWeight: 800, fontSize: 18 }}>Une erreur est survenue sur cette page</div>
+          <div style={{ color: "#8A9BB5", fontSize: 12, maxWidth: 480 }}>{String(this.state.error?.message || this.state.error)}</div>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            style={{ padding: "9px 20px", borderRadius: 8, border: "none", background: "#E85D20", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            Recharger l'application
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
-  return <AuthProvider><AppInner /></AuthProvider>;
+  return <AuthProvider><ErrorBoundary><AppInner /></ErrorBoundary></AuthProvider>;
 }

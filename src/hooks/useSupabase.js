@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../supabase.js';
-import { MOCK_OPERATORS, MOCK_ALERTS } from '../mockData.js';
+
 
 
 // ── Operators ─────────────────────────────────────────────────────────────
 export function useOperators() {
   const [operators, setOperatorsState] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetch = useCallback(async () => {
-    const { data, error } = await supabase.from('operators').select('*').order('name');
-    if (!error && data) {
+    setError(null);
+    const { data, error: err } = await supabase.from('operators').select('*').order('name');
+    if (!err && data) {
       // Charger les compteurs réels pour chaque opérateur
       const enriched = await Promise.all(data.map(async (o) => {
         const [alertsRes, blockedRes, rulesRes] = await Promise.all([
@@ -33,10 +35,13 @@ export function useOperators() {
           blocked: blockedRes.count || 0,
         };
       }));
-      if (enriched.length > 0) setOperatorsState(enriched);
-      else setOperatorsState(MOCK_OPERATORS || []);
+      setOperatorsState(enriched);
+      if (enriched.length === 0) {
+        setError("Aucun opérateur trouvé dans la base — vérifiez que la table operators est peuplée et accessible (policies RLS).");
+      }
     } else {
-      setOperatorsState(MOCK_OPERATORS || []);
+      setOperatorsState([]);
+      setError(err?.message || "Impossible de charger les opérateurs depuis Supabase.");
     }
     setLoading(false);
   }, []);
@@ -71,17 +76,19 @@ export function useOperators() {
     return { error };
   }, [fetch]);
 
-  return { operators, setOperators, loading, createOperator, updateOperator, refetch: fetch };
+  return { operators, setOperators, loading, error, createOperator, updateOperator, refetch: fetch };
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────
 export function useUsers() {
   const [users, setUsersState] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetch = useCallback(async () => {
-    const { data, error } = await supabase.from('users').select('*').order('name');
-    if (!error && data) {
+    setError(null);
+    const { data, error: err } = await supabase.from('users').select('*').order('name');
+    if (!err && data) {
       setUsersState(data.map(u => ({
         id: u.id, name: u.name, email: u.email, role: u.role,
         operator: u.operator_id, operatorId: u.operator_id,
@@ -89,6 +96,12 @@ export function useUsers() {
         avatar: (u.name || 'AA').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase(),
         createdAt: u.created_at?.slice(0,10),
       })));
+      if (data.length === 0) {
+        setError("Aucun utilisateur trouvé dans la base — vérifiez que la table users est peuplée et accessible (policies RLS).");
+      }
+    } else {
+      setUsersState([]);
+      setError(err?.message || "Impossible de charger les utilisateurs depuis Supabase.");
     }
     setLoading(false);
   }, []);
@@ -113,7 +126,7 @@ export function useUsers() {
     return { error };
   }, [fetch]);
 
-  return { users, setUsers, loading, createUser, updateUser, refetch: fetch };
+  return { users, setUsers, loading, error, createUser, updateUser, refetch: fetch };
 }
 
 // ── Alerts ────────────────────────────────────────────────────────────────
