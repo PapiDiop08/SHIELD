@@ -351,12 +351,12 @@ export default function Admin({ users, setUsers, operators, addLog, createUser }
                 {operators.map(o=><option key={o.id} value={o.name}>{o.name}</option>)}
               </select>
             </div>
-            <div style={{background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:8,padding:"10px 14px",marginBottom:18,fontSize:12,color:C.textL}}>
-              Email Un email d'invitation sera envoyé à <strong>{newUser.email||"l'utilisateur"}</strong> pour créer son mot de passe.
+            <div style={{background:C.warningL||"#FFF6E5",border:`1px solid ${C.warning}55`,borderRadius:8,padding:"10px 14px",marginBottom:18,fontSize:12,color:C.textL}}>
+              Attention : ceci crée uniquement la fiche profil de <strong>{newUser.email||"l'utilisateur"}</strong> dans SHIELD. Aucun email n'est envoyé et aucun compte de connexion n'est créé — pour que cette personne puisse se connecter, invitez-la séparément depuis Supabase Auth (Authentication → Invite user) avec le même email, puis reliez son compte ici si besoin.
             </div>
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" onClick={()=>setShowCreate(false)} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>
-              <Btn onClick={handleCreateUser} disabled={!newUser.name||!newUser.email} style={{flex:2,justifyContent:"center"}}>USR Créer et inviter</Btn>
+              <Btn onClick={handleCreateUser} disabled={!newUser.name||!newUser.email} style={{flex:2,justifyContent:"center"}}>Créer le profil</Btn>
             </div>
           </div>
         </Modal>

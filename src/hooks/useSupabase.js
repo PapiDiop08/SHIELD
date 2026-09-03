@@ -87,17 +87,19 @@ export function useUsers() {
 
   const fetch = useCallback(async () => {
     setError(null);
-    const { data, error: err } = await supabase.from('users').select('*').order('name');
+    // NOTE : le compte utilisateur réel vit dans `profiles` (lié à supabase.auth),
+    // pas dans une table `users` séparée qui n'existe pas dans ce projet Supabase.
+    const { data, error: err } = await supabase.from('profiles').select('*').order('name');
     if (!err && data) {
       setUsersState(data.map(u => ({
         id: u.id, name: u.name, email: u.email, role: u.role,
-        operator: u.operator_id, operatorId: u.operator_id,
+        operator: u.operator, operatorId: u.operator_id,
         active: u.active, lastLogin: u.last_login || '—',
-        avatar: (u.name || 'AA').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase(),
+        avatar: u.avatar || (u.name || 'AA').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase(),
         createdAt: u.created_at?.slice(0,10),
       })));
       if (data.length === 0) {
-        setError("Aucun utilisateur trouvé dans la base — vérifiez que la table users est peuplée et accessible (policies RLS).");
+        setError("Aucun utilisateur trouvé dans la base — vérifiez que la table profiles est peuplée et accessible (policies RLS).");
       }
     } else {
       setUsersState([]);
@@ -110,16 +112,18 @@ export function useUsers() {
   const setUsers = useCallback((u) => setUsersState(u), []);
 
   const createUser = useCallback(async (user, operatorId) => {
-    const { data, error } = await supabase.from('users').insert([{
+    // Un compte utilisateur réel doit être créé via supabase.auth (invite/sign-up) —
+    // ceci crée seulement la ligne de profil associée, pour un id déjà existant côté auth.
+    const { data, error } = await supabase.from('profiles').insert([{
       name: user.name, email: user.email, role: user.role,
-      operator_id: operatorId || null, active: true,
+      operator_id: operatorId || null, operator: user.operator || null, active: true,
     }]).select();
     if (!error) await fetch();
     return { data, error };
   }, [fetch]);
 
   const updateUser = useCallback(async (id, updates) => {
-    const { error } = await supabase.from('users').update({
+    const { error } = await supabase.from('profiles').update({
       role: updates.role, active: updates.active,
     }).eq('id', id);
     if (!error) await fetch();

@@ -4,14 +4,6 @@ import { ROLE_PERMISSIONS } from "./theme.js";
 
 const AuthContext = createContext(null);
 
-// Comptes démo Telco (fallback si auth non configuré)
-const DEMO_USERS = [
-  { id:"t1", name:"Papa Assane Diop",  email:"admin@aar-momo.com",    pwd:"AarAdmin2026!", role:"superadmin",  operator:null,         avatar:"PA" },
-  { id:"t2", name:"Ibrahima Sow",      email:"ibrahima@partner.sn",   pwd:"AarAdmin2026!", role:"admin",       operator:"Partner SN", avatar:"IS" },
-  { id:"t3", name:"Aïssatou Fall",     email:"aissatou@aar-momo.com", pwd:"AarAdmin2026!", role:"aar_analyst", operator:null,         avatar:"AF" },
-  { id:"t4", name:"Kofi Mensah",       email:"kofi@partner.gh",       pwd:"AarAdmin2026!", role:"analyst",     operator:"Partner GH", avatar:"KM" },
-];
-
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [logs, setLogs]               = useState([]);
@@ -23,20 +15,13 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         _loadProfile(session.user);
       } else {
-        // Fallback : session démo persistée en localStorage
-        try {
-          const saved = localStorage.getItem('aar_demo_user');
-          if (saved) { setCurrentUser(JSON.parse(saved)); }
-        } catch(_) {}
         setAuthLoading(false);
       }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) _loadProfile(session.user);
       else {
-        // Ne pas déconnecter si c'est une session démo
-        const saved = localStorage.getItem('aar_demo_user');
-        if (!saved) { setCurrentUser(null); }
+        setCurrentUser(null);
         setAuthLoading(false);
       }
     });
@@ -81,28 +66,13 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     if (!password) return { success: false, error: "Mot de passe requis" };
-
-    // 1. Essayer auth
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error && data?.user) return { success: true, user: data.user };
-
-    // 2. Fallback démo
-    const demo = DEMO_USERS.find(u => u.email === email && u.pwd === password);
-    if (demo) {
-      const { pwd: _, ...user } = demo;
-      const fullUser = { ...user, active: true, lastLogin: new Date().toISOString().slice(0,16), createdAt: "2025-08-01", operatorId: null };
-      setCurrentUser(fullUser);
-      localStorage.setItem('aar_demo_user', JSON.stringify(fullUser));
-      setAuthLoading(false);
-      return { success: true, user };
-    }
-
     return { success: false, error: "Email ou mot de passe incorrect" };
   }, []);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem('aar_demo_user');
     setCurrentUser(null);
   }, []);
 

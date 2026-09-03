@@ -13,12 +13,6 @@ function Logo({ size = 48 }) {
   );
 }
 
-const QUICK_ACCOUNTS = [
-  { role: "Superadmin AAR",   email: "admin@aar-momo.com",    pwd: "AarAdmin2026!", color: C.danger },
-  { role: "Admin — Partner",  email: "ibrahima@partner.sn",   pwd: "AarAdmin2026!", color: C.orange },
-  { role: "Analyste — AAR",   email: "aissatou@aar-momo.com", pwd: "AarAdmin2026!", color: C.purple },
-];
-
 export default function Login() {
   const { login } = useAuth();
   const [email, setEmail]       = useState("");
@@ -33,12 +27,6 @@ export default function Login() {
     setError("");
     const result = await login(email, password);
     if (!result.success) { setError(result.error || "Email ou mot de passe incorrect"); setLoading(false); }
-  }
-
-  async function quickLogin(acc) {
-    setLoading(true); setError("");
-    const result = await login(acc.email, acc.pwd);
-    if (!result.success) { setError(result.error); setLoading(false); }
   }
 
   return (
@@ -112,24 +100,6 @@ export default function Login() {
               </button>
             </form>
 
-            <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${C.mutedL}` }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 10 }}>
-                Accès rapide
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {QUICK_ACCOUNTS.map(u => (
-                  <div key={u.email} onClick={() => quickLogin(u)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.bg, borderRadius: 8, border: `1px solid ${C.mutedL}`, cursor: "pointer" }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: u.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.navy }}>{u.role}</div>
-                      <div style={{ fontSize: 10, color: C.muted, fontFamily: "monospace" }}>{u.email}</div>
-                    </div>
-                    <div style={{ fontSize: 9, color: C.muted }}>Cliquer →</div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
           <p style={{ textAlign: "center", marginTop: 16, fontSize: 11, color: C.muted }}>
             © 2026 AAR — Africa Anti-fraud &amp; Risk — CONFIDENTIEL
