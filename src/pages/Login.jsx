@@ -29,6 +29,26 @@ export default function Login() {
     if (!result.success) { setError(result.error || "Email ou mot de passe incorrect"); setLoading(false); }
   }
 
+  // Comptes de démonstration — accès réel via Supabase Auth (aucun bypass local).
+  // Volontairement limité à des rôles à portée restreinte (superviseur cross-opérateur
+  // en lecture seule, admin scopé à un seul opérateur). Pas de démo superadmin : ce
+  // rôle a des droits destructeurs/financiers complets et ne doit jamais être accessible
+  // en un clic.
+  const DEMO_ACCOUNTS = [
+    { label: "Démo Superviseur", sub: "Vue globale, lecture seule", email: "demo.superviseur@shield-aar.app", password: "ShieldDemo2026!" },
+    { label: "Démo Opérateur SN", sub: "Partner SN — accès restreint", email: "demo.operateur@shield-aar.app", password: "ShieldDemo2026!" },
+  ];
+
+  async function handleDemoLogin(acc) {
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    setEmail(acc.email);
+    setPassword(acc.password);
+    const result = await login(acc.email, acc.password);
+    if (!result.success) { setError(result.error || "Compte démo indisponible"); setLoading(false); }
+  }
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -99,6 +119,26 @@ export default function Login() {
                 {loading ? "Connexion..." : "Se connecter →"}
               </button>
             </form>
+
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${C.mutedL}` }}>
+              <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Connexion démo
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {DEMO_ACCOUNTS.map(acc => (
+                  <button key={acc.email} type="button" disabled={loading}
+                    onClick={() => handleDemoLogin(acc)}
+                    style={{
+                      textAlign: "left", background: C.navyB ? `${C.navy}08` : "#f5f6f8",
+                      border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "9px 12px",
+                      cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+                    }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: C.navy }}>{acc.label}</div>
+                    <div style={{ fontSize: 10.5, color: C.textL }}>{acc.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
           </div>
           <p style={{ textAlign: "center", marginTop: 16, fontSize: 11, color: C.muted }}>
