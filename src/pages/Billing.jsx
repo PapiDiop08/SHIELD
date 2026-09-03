@@ -7,6 +7,29 @@ import { Card, Btn, SectionHeader, Badge } from "../components.jsx";
 import { useAuth } from "../AuthContext.jsx";
 import { supabase } from "../supabase.js";
 
+// ── Export CSV facturation ──────────────────────────────────────────────
+function exportBillingCSV(rows, filename, currentMonth) {
+  const headers = ["Operateur", "Abonnement_Base_XOF", "Detections", "Cout_Detections_XOF", "Blocages", "Cout_Blocages_XOF", "Pack_MM_XOF", "Pack_IA_XOF", "Usage_IA_XOF", "Total_XOF"];
+  const lines = [
+    `Facturation SHIELD — ${currentMonth}`,
+    headers.join(";"),
+    ...rows.map(o => [
+      o.name || "",
+      o.monthlyFee || 250000,
+      o.opAlerts, o.alertCost,
+      o.opBlocked, o.blockCost,
+      o.mmCost, o.aiPackCost, o.aiUsageCost,
+      o.total,
+    ].join(";")),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ── Hook : usage IA depuis AAR DB par opérateur ────────────────────────
 function useAIUsage() {
   const [aiUsage, setAIUsage] = useState({});
@@ -90,8 +113,8 @@ export default function Billing({ operators, alerts, blockings }) {
               style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
               Sync
             </button>
-            <Btn variant="secondary">Import Exporter Excel</Btn>
-            <Btn>Générer factures PDF</Btn>
+            <Btn variant="secondary" onClick={() => exportBillingCSV(opBills, `facturation_shield_${currentMonthKey}.csv`, currentMonth)}>Import Exporter Excel</Btn>
+            <Btn onClick={() => window.print()}>Générer factures PDF</Btn>
           </div>
         }
       />
