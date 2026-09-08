@@ -25,3 +25,12 @@ dist-ssr
 .vercel
 .env.server
 test_cdr_simbox.csv
+.sftp-venv/
+sftp/keys/
+sftp/incoming/*
+sftp/processed/*
+sftp/error/*
+sftp/*.log
+!sftp/incoming/.gitkeep
+!sftp/processed/.gitkeep
+!sftp/error/.gitkeep
