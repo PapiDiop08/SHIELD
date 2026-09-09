@@ -108,7 +108,10 @@ def ingest_file(path):
                 "apikey": SECRET_KEY,
                 "Content-Type": "application/json",
             },
-            json={"p_rows": rows, "p_filename": filename, "p_source": "sftp-partner"},
+            # p_source = identifiant du compte SFTP qui a depose le fichier.
+            # C'est CETTE valeur (jamais une colonne du CSV) qui determine
+            # l'operateur via la table ingest_sources cote serveur.
+            json={"p_rows": rows, "p_filename": filename, "p_source": "partner_test"},
             timeout=60,
         )
         resp.raise_for_status()
