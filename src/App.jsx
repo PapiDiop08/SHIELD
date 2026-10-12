@@ -1,4 +1,4 @@
-import { useState, useEffect, Component } from "react";
+import { useState, useEffect, useRef, Component } from "react";
 import { AuthProvider, useAuth } from "./AuthContext.jsx";
 import Login from "./pages/Login.jsx";
 import Layout from "./pages/Layout.jsx";
@@ -109,6 +109,17 @@ function AppInner() {
   const { blockings, setBlockings, createBlocking, unblock, reblock } = useBlockings(null);
   const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(null);
   const { complaints, setComplaints } = useComplaints(null);
+
+  // ── Re-fetch dès que l'auth est prête (évite le blocage RLS anon au premier chargement) ──
+  const didRefetchRef = useRef(false);
+  useEffect(() => {
+    if (!authLoading && currentUser && !didRefetchRef.current) {
+      didRefetchRef.current = true;
+      refetchOperators();
+      refetchUsers();
+    }
+    if (!currentUser) didRefetchRef.current = false;
+  }, [authLoading, currentUser, refetchOperators, refetchUsers]);
 
   // ── Filtre opérateur selon le compte connecté ────────────────────────────
   const currentOperator = operators.find(o =>
