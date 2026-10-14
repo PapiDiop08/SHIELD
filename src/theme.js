@@ -1,22 +1,57 @@
-// ── SHIELD Theme — aligné AAR Mobile Money ───────────────────────────────
+// ── SHIELD Theme — aligné GFM AAR Digital ────────────────────────────────
 export const C = {
-  bg: "#F2F4F8", white: "#FFFFFF",
-  navy: "#0D1326", navyL: "#162040", navyB: "#1E2D5A",
-  red: "#E85D20", redL: "#FDF0EA",
-  orange: "#E85D20", orangeL: "#FDF0EA",
-  gold: "#D4921A", goldL: "#FBF3E2",
-  sky: "#2B8BBF", skyL: "#E8F4FB",
-  muted: "#7A849C", mutedL: "#E4E7F0",
-  success: "#1A9461", successL: "#E6F6EF",
-  warning: "#C4820F", warningL: "#FAF1E0",
-  danger: "#C93535", dangerL: "#FAEAEA",
-  purple: "#5B43D6", purpleL: "#EEEBFD",
-  teal: "#0E9E91", tealL: "#E4F6F5",
-  pink: "#C94A86", pinkL: "#FBEAF3",
-  indigo: "#3A58D4", indigoL: "#EAEEFB",
-  lime: "#6A9E12", limeL: "#EFF6E0",
-  magenta: "#9E1589", magentaL: "#F7E4F3",
-  text: "#111827", textL: "#3D4A66",
+  // Backgrounds
+  bg: "#F1F5F9",        // slate-100 — fond principal
+  bgAlt: "#F3F4F6",     // gray-100 — layout shell
+  white: "#FFFFFF",
+  light: "#EEF0F3",     // bg-gfm-light — hover state
+
+  // Sidebar (gradient charcoal, identique GFM)
+  navy: "#0A0B0D",      // sidebar top (gradient from)
+  navyL: "#1A1D22",     // sidebar mid
+  navyB: "#282B31",     // sidebar bottom (gradient to)
+
+  // Primary action — GFM Blue
+  blue: "#0052FF",      // bg-gfm-blue — boutons primaires, nav actif
+  blueL: "#EEF3FF",
+  blueLink: "#0667D0",
+
+  // KPI & status — exactement GFM
+  red: "#DC2626",       // text-red-600
+  redL: "#FEF2F2",
+  orange: "#EA580C",
+  orangeL: "#FFF7ED",
+
+  gold: "#D97706",      // amber-600
+  goldL: "#FFFBEB",
+  sky: "#3B82F6",
+  skyL: "#EFF6FF",
+
+  muted: "#64748B",     // slate-500
+  mutedL: "#E2E8F0",    // slate-200
+
+  success: "#059669",
+  successL: "#ECFDF5",
+  warning: "#D97706",
+  warningL: "#FFFBEB",
+  danger: "#DC2626",
+  dangerL: "#FEF2F2",
+
+  purple: "#7C3AED",
+  purpleL: "#F5F3FF",
+  teal: "#0D9488",
+  tealL: "#F0FDFA",
+  pink: "#DB2777",
+  pinkL: "#FDF2F8",
+  indigo: "#4F46E5",
+  indigoL: "#EEF2FF",
+  lime: "#65A30D",
+  limeL: "#F7FEE7",
+  magenta: "#9D174D",
+  magentaL: "#FFF1F2",
+
+  text: "#0F172A",      // slate-900
+  textL: "#475569",     // slate-600
 };
 
 export const FRAUD_CATEGORIES = {

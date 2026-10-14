@@ -6,8 +6,8 @@ import { C } from "../theme.js";
 function Logo({ size = 48 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 200 200">
-      <path d="M100 12 L182 52 L182 118 Q182 166 100 188 Q18 166 18 118 L18 52 Z" fill={C.orange} opacity="0.95" />
-      <path d="M100 12 L182 52 L182 82 Q142 60 100 12 Z" fill={C.gold} opacity="0.9" />
+      <path d="M100 12 L182 52 L182 118 Q182 166 100 188 Q18 166 18 118 L18 52 Z" fill={C.blue} opacity="0.95" />
+      <path d="M100 12 L182 52 L182 82 Q142 60 100 12 Z" fill="#60A5FA" opacity="0.85" />
       <text x="100" y="132" textAnchor="middle" fontSize="62" fontWeight="900" fill="white" fontFamily="Arial">T</text>
     </svg>
   );
@@ -29,11 +29,6 @@ export default function Login() {
     if (!result.success) { setError(result.error || "Email ou mot de passe incorrect"); setLoading(false); }
   }
 
-  // Comptes de démonstration — accès réel via Supabase Auth (aucun bypass local).
-  // Volontairement limité à des rôles à portée restreinte (superviseur cross-opérateur
-  // en lecture seule, admin scopé à un seul opérateur). Pas de démo superadmin : ce
-  // rôle a des droits destructeurs/financiers complets et ne doit jamais être accessible
-  // en un clic.
   const DEMO_ACCOUNTS = [
     { label: "Démo Superviseur", sub: "Vue globale, lecture seule", email: "demo.superviseur@shield-aar.app", password: "ShieldDemo2026!" },
     { label: "Démo Opérateur SN", sub: "Partner SN — accès restreint", email: "demo.operateur@shield-aar.app", password: "ShieldDemo2026!" },
@@ -52,9 +47,9 @@ export default function Login() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: `radial-gradient(1200px 600px at 50% -10%, ${C.navyB} 0%, ${C.navy} 55%)`,
+      background: "linear-gradient(180deg, #0A0B0D 0%, #282B31 100%)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'DM Sans','Segoe UI',sans-serif", padding: 24,
+      fontFamily: "'Fira Sans', -apple-system, 'Segoe UI', sans-serif", padding: 24,
     }}>
       <div style={{ display: "flex", gap: 40, alignItems: "flex-start", width: "100%", maxWidth: 920 }}>
 
@@ -63,15 +58,15 @@ export default function Login() {
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 30 }}>
             <Logo size={48} />
             <div>
-              <div style={{ fontWeight: 900, fontSize: 22, color: C.white, letterSpacing: 1 }}>AAR Telco</div>
-              <div style={{ fontSize: 11, color: C.muted }}>by AAR — Africa Anti-fraud &amp; Risk</div>
+              <div style={{ fontWeight: 700, fontSize: 22, color: "#F8FAFC", letterSpacing: 0.5 }}>AAR Telco</div>
+              <div style={{ fontSize: 11, color: "#64748B" }}>by AAR — Africa Anti-fraud &amp; Risk</div>
             </div>
           </div>
-          <h1 style={{ margin: "0 0 16px", fontSize: 34, fontWeight: 900, color: C.white, lineHeight: 1.2 }}>
+          <h1 style={{ margin: "0 0 16px", fontSize: 34, fontWeight: 700, color: "#F8FAFC", lineHeight: 1.2 }}>
             Protégez vos revenus<br />
-            <span style={{ color: C.orange }}>télécom.</span>
+            <span style={{ color: C.blue }}>télécom.</span>
           </h1>
-          <p style={{ margin: "0 0 32px", fontSize: 15, color: C.muted, lineHeight: 1.6 }}>
+          <p style={{ margin: "0 0 32px", fontSize: 15, color: "#64748B", lineHeight: 1.6 }}>
             Plateforme de détection de fraude télécom pour les opérateurs africains — SIM Box, IRSF, Wangiri, bypass GSM, anomalies CDR.
           </p>
           {[
@@ -82,7 +77,7 @@ export default function Login() {
             { label: "Export CSV — blocage & blacklist automatiques" },
           ].map(item => (
             <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.orange, flexShrink: 0, display: "inline-block" }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.blue, flexShrink: 0, display: "inline-block" }} />
               <span style={{ fontSize: 13, color: C.muted }}>{item.label}</span>
             </div>
           ))}
@@ -115,8 +110,8 @@ export default function Login() {
               )}
 
               <button type="submit" disabled={loading || !email || !password}
-                style={{ width: "100%", background: loading || !email || !password ? C.muted : C.orange, color: C.white, border: "none", borderRadius: 8, padding: "12px", fontWeight: 800, fontSize: 15, cursor: loading || !email || !password ? "not-allowed" : "pointer" }}>
-                {loading ? "Connexion..." : "Se connecter →"}
+                style={{ width: "100%", background: loading || !email || !password ? "#94A3B8" : C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, cursor: loading || !email || !password ? "not-allowed" : "pointer", fontFamily: "'Fira Sans', sans-serif", letterSpacing: 0.2 }}>
+                {loading ? "Connexion..." : "SE CONNECTER"}
               </button>
             </form>
 
@@ -129,7 +124,7 @@ export default function Login() {
                   <button key={acc.email} type="button" disabled={loading}
                     onClick={() => handleDemoLogin(acc)}
                     style={{
-                      textAlign: "left", background: C.navyB ? `${C.navy}08` : "#f5f6f8",
+                      textAlign: "left", background: `${C.navy}08`,
                       border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "9px 12px",
                       cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
                     }}>
