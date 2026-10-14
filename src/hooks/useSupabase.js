@@ -22,7 +22,7 @@ export function useOperators() {
         ]);
         return {
           id: o.id, name: o.name, code: o.code, country: o.country,
-          active: o.active, contact: o.contact_email, contractStart: o.created_at?.slice(0,10),
+          active: o.status === 'active', status: o.status, contact: o.contact_email, contractStart: o.created_at?.slice(0,10),
           monthlyFee: o.monthly_fee || 250000,
           perAlertFee: o.per_alert_fee || 5,
           perBlockFee: o.per_block_fee || 10,
@@ -58,7 +58,7 @@ export function useOperators() {
       pack_ai: op.packs?.ai || false, pack_deepai: op.packs?.deepai || false,
       pack_api: op.packs?.api || false, sla_enabled: op.slaEnabled || false,
       sla_critical: op.slaConfig?.critical || 2, sla_high: op.slaConfig?.high || 8,
-      sla_medium: op.slaConfig?.medium || 24, active: true,
+      sla_medium: op.slaConfig?.medium || 24, status: 'active',
     }]).select();
     if (!error) await fetch();
     return { data, error };
@@ -66,7 +66,7 @@ export function useOperators() {
 
   const updateOperator = useCallback(async (id, updates) => {
     const { error } = await supabase.from('operators').update({
-      name: updates.name, code: updates.code, active: updates.active,
+      name: updates.name, code: updates.code, status: updates.active ? 'active' : 'inactive',
       contact_email: updates.contact, monthly_fee: updates.monthlyFee,
       pack_mm: updates.packs?.mm, pack_ai: updates.packs?.ai,
       sla_enabled: updates.slaEnabled, sla_critical: updates.slaConfig?.critical,
