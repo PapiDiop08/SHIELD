@@ -22,7 +22,7 @@ export function useOperators() {
         ]);
         return {
           id: o.id, name: o.name, code: o.code, country: o.country,
-          active: o.active, contact: o.contact_email, contractStart: o.created_at?.slice(0,10),
+          active: o.status === 'active', status: o.status, contact: o.contact_email, contractStart: o.created_at?.slice(0,10),
           monthlyFee: o.monthly_fee || 250000,
           perAlertFee: o.per_alert_fee || 5,
           perBlockFee: o.per_block_fee || 10,
@@ -58,7 +58,7 @@ export function useOperators() {
       pack_ai: op.packs?.ai || false, pack_deepai: op.packs?.deepai || false,
       pack_api: op.packs?.api || false, sla_enabled: op.slaEnabled || false,
       sla_critical: op.slaConfig?.critical || 2, sla_high: op.slaConfig?.high || 8,
-      sla_medium: op.slaConfig?.medium || 24, active: true,
+      sla_medium: op.slaConfig?.medium || 24, status: 'active',
     }]).select();
     if (!error) await fetch();
     return { data, error };
@@ -66,7 +66,7 @@ export function useOperators() {
 
   const updateOperator = useCallback(async (id, updates) => {
     const { error } = await supabase.from('operators').update({
-      name: updates.name, code: updates.code, active: updates.active,
+      name: updates.name, code: updates.code, status: updates.active ? 'active' : 'inactive',
       contact_email: updates.contact, monthly_fee: updates.monthlyFee,
       pack_mm: updates.packs?.mm, pack_ai: updates.packs?.ai,
       sla_enabled: updates.slaEnabled, sla_critical: updates.slaConfig?.critical,
@@ -202,12 +202,12 @@ export function useRules() {
       .order('triggered', { ascending: false });
     if (!error && data) {
       setRulesState(data.map(r => ({
-        id: r.id, name: r.name, type: r.fraud_type,
-        severity: r.severity, action: r.action, scope: r.scope || 'global',
+        id: r.id, name: r.name, type: r.description || r.name,
+        severity: r.severity, action: r.action, scope: r.scope || 'telco',
         active: r.active, triggered: r.triggered || 0, blocked: r.blocked || 0,
-        conditions: r.conditions || [], createdBy: r.created_by,
-        creatorName: "AAR",
-        date: r.created_at?.slice(0,10), operator: r.operator_id, caseId: r.case_id,
+        conditions: r.conditions || [], createdBy: r.creator_name,
+        creatorName: r.creator_name || "AAR",
+        date: r.date || r.created_at?.slice(0,10), operator: r.operator_id, caseId: null,
       })));
     }
     setLoading(false);
@@ -230,10 +230,10 @@ export function useRules() {
   const createRule = useCallback(async (rule) => {
     const { data, error } = await supabase.from('rules').insert([{
       name: rule.name,
-      fraud_type: rule.type,
+      description: rule.type || rule.name,
       severity: rule.severity,
       action: rule.action,
-      scope: rule.scope || 'global',
+      scope: 'telco',
       active: true,
       conditions: rule.conditions || [],
       triggered: 0,
@@ -245,7 +245,7 @@ export function useRules() {
 
   const updateRule = useCallback(async (id, rule) => {
     const { error } = await supabase.from('rules').update({
-      name: rule.name, fraud_type: rule.type, severity: rule.severity,
+      name: rule.name, description: rule.type || rule.name, severity: rule.severity,
       action: rule.action, active: rule.active, conditions: rule.conditions || [],
     }).eq('id', id);
     if (!error) await fetch();
@@ -280,10 +280,10 @@ export function useBlockings(operatorFilter) {
       setBlockingsState(data.map(b => ({
         id: b.id, msisdn: b.msisdn, imei: b.imei || '', imsi: b.imsi || '',
         cellId: b.cell_id || '', operator: b.operator || b.operator_id || '—',
-        operatorId: b.operator_id, blockedBy: b.blocked_by,
+        operatorId: b.operator_id, blockedBy: b.blocked_by || null,
         blockerName: "AAR", reason: b.reason,
-        source: b.source, interOpSource: b.inter_op_source,
-        notes: b.notes, active: b.active, date: b.blocked_at,
+        source: b.source, interOpSource: null,
+        notes: b.notes, active: b.active, date: b.date || b.created_at?.slice(0,10),
         created_at: b.created_at,
         autoFlagged: b.auto_flagged || [],
       })));
@@ -294,10 +294,10 @@ export function useBlockings(operatorFilter) {
   const toBlocking = useCallback((b) => ({
     id: b.id, msisdn: b.msisdn, imei: b.imei || '', imsi: b.imsi || '',
     cellId: b.cell_id || '', operator: b.operator || b.operator_id || '—',
-    operatorId: b.operator_id, blockedBy: b.blocked_by,
+    operatorId: b.operator_id, blockedBy: b.blocked_by || null,
     blockerName: "AAR", reason: b.reason,
-    source: b.source, interOpSource: b.inter_op_source,
-    notes: b.notes, active: b.active, date: b.blocked_at,
+    source: b.source, interOpSource: null,
+    notes: b.notes, active: b.active, date: b.date || b.created_at?.slice(0,10),
     created_at: b.created_at,
     autoFlagged: b.auto_flagged || [],
   }), []);
@@ -327,7 +327,6 @@ export function useBlockings(operatorFilter) {
       msisdn: blocking.msisdn,
       reason: blocking.reason,
       source: blocking.source || 'analyst',
-      inter_op_source: blocking.interOpSource || null,
       notes: blocking.notes || null, active: true, auto_flagged: [],
     }]).select();
     if (!error) await fetch();
@@ -336,13 +335,13 @@ export function useBlockings(operatorFilter) {
 
   const unblock = useCallback(async (id) => {
     await supabase.from('blockings').update({
-      active: false, unblocked_at: new Date().toISOString()
+      active: false
     }).eq('id', id);
     setBlockingsState(p => p.map(b => b.id === id ? { ...b, active: false } : b));
   }, []);
 
   const reblock = useCallback(async (id) => {
-    await supabase.from('blockings').update({ active: true, unblocked_at: null }).eq('id', id);
+    await supabase.from('blockings').update({ active: true }).eq('id', id);
     setBlockingsState(p => p.map(b => b.id === id ? { ...b, active: true } : b));
   }, []);
 
@@ -363,7 +362,7 @@ export function useControlLists(operatorFilter) {
     const ENTRY_TYPE_NORM = { msisdn:"MSISDN", imsi:"IMSI", imei:"IMEI", imei_prefix:"IMEI Préfixe", prefix:"Préfixe numéro", cell_id:"Cell ID / BTS", pays:"Pays", cdr_field:"Champ CDR" };
     if (!error && data) {
       setBlacklistState(data.map(e => ({
-        id: e.id, list: e.list_type, type: ENTRY_TYPE_NORM[e.entry_type] || e.entry_type, value: e.value,
+        id: e.id, list: e.list, type: ENTRY_TYPE_NORM[e.type] || e.type, value: e.value,
         reason: e.reason, addedBy: e.added_by,
         date: e.created_at?.slice(0,10), active: e.active,
         matches: e.matches || 0, lastMatch: e.last_match,
@@ -378,8 +377,8 @@ export function useControlLists(operatorFilter) {
 
   const addEntry = useCallback(async (entry, operatorId) => {
     const { data, error } = await supabase.from('control_lists').insert([{
-      operator_id: operatorId, list_type: entry.list,
-      entry_type: entry.type, value: entry.value,
+      operator_id: operatorId, list: entry.list,
+      type: entry.type, value: entry.value,
       reason: entry.reason, active: true, matches: 0,
       days_left: entry.daysLeft || null,
     }]).select();
@@ -398,7 +397,7 @@ export function useControlLists(operatorFilter) {
   }, []);
 
   const moveEntry = useCallback(async (id, listType) => {
-    await supabase.from('control_lists').update({ list_type: listType }).eq('id', id);
+    await supabase.from('control_lists').update({ list: listType }).eq('id', id);
     setBlacklistState(p => p.map(e => e.id === id ? { ...e, list: listType } : e));
   }, []);
 

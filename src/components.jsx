@@ -9,16 +9,17 @@ export function Badge({ label, color, small }) {
 
 export function Btn({ children, onClick, variant = "primary", small, style, disabled, type = "button" }) {
   const styles = {
-    primary: { background: C.red, color: C.white, border: "none" },
-    secondary: { background: C.white, color: C.navy, border: `1px solid ${C.mutedL}` },
-    navy: { background: C.navy, color: C.white, border: "none" },
-    ghost: { background: "none", color: C.textL, border: `1px solid ${C.mutedL}` },
-    success: { background: C.successL, color: C.success, border: `1px solid ${C.success}44` },
-    danger: { background: C.dangerL, color: C.danger, border: `1px solid ${C.danger}44` },
-    warning: { background: C.warningL, color: C.warning, border: `1px solid ${C.warning}44` },
-    purple: { background: C.purpleL, color: C.purple, border: `1px solid ${C.purple}44` },
-    sky: { background: C.skyL, color: C.sky, border: `1px solid ${C.sky}44` },
-    teal: { background: C.tealL, color: C.teal, border: `1px solid ${C.teal}44` },
+    primary:   { background: C.blue,    color: C.white,   border: "none" },
+    secondary: { background: C.white,   color: C.text,    border: `1px solid ${C.mutedL}` },
+    navy:      { background: C.navyB,   color: C.white,   border: "none" },
+    ghost:     { background: "none",    color: C.textL,   border: `1px solid ${C.mutedL}` },
+    success:   { background: C.successL, color: C.success, border: `1px solid ${C.success}44` },
+    danger:    { background: C.dangerL,  color: C.danger,  border: `1px solid ${C.danger}44` },
+    warning:   { background: C.warningL, color: C.warning, border: `1px solid ${C.warning}44` },
+    purple:    { background: C.purpleL,  color: C.purple,  border: `1px solid ${C.purple}44` },
+    sky:       { background: C.skyL,    color: C.sky,     border: `1px solid ${C.sky}44` },
+    teal:      { background: C.tealL,   color: C.teal,    border: `1px solid ${C.teal}44` },
+    red:       { background: C.redL,    color: C.red,     border: `1px solid ${C.red}44` },
   };
   return (
     <button type={type} onClick={onClick} disabled={disabled} style={{ ...styles[variant], borderRadius: 8, padding: small ? "5px 11px" : "9px 18px", fontSize: small ? 11 : 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: disabled ? 0.5 : 1, whiteSpace: "nowrap", flexShrink: 0, ...style }}
@@ -30,26 +31,34 @@ export function Btn({ children, onClick, variant = "primary", small, style, disa
 
 export function Card({ children, style, onClick }) {
   return (
-    <div onClick={onClick} style={{ background: C.white, border: `1px solid ${C.mutedL}`, borderRadius: 12, boxShadow: "0 1px 4px rgba(13,27,62,0.06)", cursor: onClick ? "pointer" : "default", ...style }}
-      onMouseOver={onClick ? e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(13,27,62,0.12)" : undefined}
-      onMouseOut={onClick ? e => e.currentTarget.style.boxShadow = "0 1px 4px rgba(13,27,62,0.06)" : undefined}
+    <div onClick={onClick} style={{
+      background: C.white,
+      border: `1px solid ${C.mutedL}`,
+      borderRadius: 12,
+      boxShadow: "rgba(15,23,42,0.04) 0px 1px 2px 0px, rgba(15,23,42,0.03) 0px 1px 4px 0px",
+      cursor: onClick ? "pointer" : "default",
+      transition: "box-shadow 0.2s",
+      ...style
+    }}
+      onMouseOver={onClick ? e => e.currentTarget.style.boxShadow = "rgba(15,23,42,0.1) 0px 4px 12px 0px" : undefined}
+      onMouseOut={onClick ? e => e.currentTarget.style.boxShadow = "rgba(15,23,42,0.04) 0px 1px 2px 0px, rgba(15,23,42,0.03) 0px 1px 4px 0px" : undefined}
     >{children}</div>
   );
 }
 
 export function Stat({ value, label, color, sub, icon }) {
-  const iconColor = color || C.navy;
+  const iconColor = color || C.blue;
   return (
-    <Card style={{ padding: "16px 20px", flex: 1, minWidth: 130 }}>
+    <Card style={{ padding: "20px", flex: 1, minWidth: 130 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 26, fontWeight: 900, color: iconColor, lineHeight: 1, letterSpacing: -0.5 }}>{value}</div>
-          {sub && <div style={{ fontSize: 11, color: C.success, marginTop: 4, fontWeight: 700 }}>{sub}</div>}
-          <div style={{ fontSize: 11, color: C.textL, marginTop: 7, fontWeight: 500 }}>{label}</div>
+          <div className="kpi-label">{label}</div>
+          <div className="kpi-value" style={{ color: iconColor }}>{value}</div>
+          {sub && <div className="kpi-sub">{sub}</div>}
         </div>
         {icon && (
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: iconColor + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Icon name={icon} size={16} color={iconColor} strokeWidth={1.75} />
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: iconColor + "14", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name={icon} size={17} color={iconColor} strokeWidth={1.75} />
           </div>
         )}
       </div>
@@ -88,8 +97,8 @@ export function SectionHeader({ title, sub, action }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.navy }}>{title}</h1>
-        {sub && <p style={{ margin: "4px 0 0", color: C.textL, fontSize: 12 }}>{sub}</p>}
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1E293B", letterSpacing: "-0.01em" }}>{title}</h1>
+        {sub && <p style={{ margin: "4px 0 0", color: C.muted, fontSize: 13 }}>{sub}</p>}
       </div>
       {action && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>{action}</div>}
     </div>

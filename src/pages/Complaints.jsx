@@ -191,7 +191,7 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
         });
       } else if (action === "monitor") {
         await supabase.from("control_lists").insert([{
-          list_type: "watchlist", entry_type: "msisdn",
+          list: "watchlist", type: "msisdn",
           value: msisdn, reason: `Surveillance — ${c.fraud_type || c.tag}`,
           active: true,
         }]);
@@ -411,7 +411,7 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
                         const msisdn = c.msisdn_reported || c.msisdn;
                         if (!msisdn) return;
                         await supabase.from("control_lists").insert([{
-                          list_type: "watchlist", entry_type: "msisdn",
+                          list: "watchlist", type: "msisdn",
                           value: msisdn, reason: `Surveillance — ${c.fraud_type || c.tag}`,
                           active: true,
                         }]);
@@ -423,7 +423,7 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
                         const msisdn = c.msisdn_reported || c.msisdn;
                         if (!msisdn) return;
                         await supabase.from("control_lists").insert([{
-                          list_type: "whitelist", entry_type: "msisdn",
+                          list: "whitelist", type: "msisdn",
                           value: msisdn, reason: `Faux positif — Plainte classée`,
                           active: true,
                         }]);
