@@ -32,7 +32,7 @@ export async function blockAndBlacklist({ msisdn, imei, imsi, cell_id, operatorI
     if (msisdn) {
       const { error: e1 } = await supabase.from("control_lists").insert([{
         operator_id: operatorId || null,
-        list_type: "blacklist", entry_type: "msisdn",
+        list: "blacklist", type: "msisdn",
         value: msisdn,
         reason: reason || "Blocage — MSISDN blacklisté",
         active: true,
@@ -45,7 +45,7 @@ export async function blockAndBlacklist({ msisdn, imei, imsi, cell_id, operatorI
     if (imei) {
       const { error: e2 } = await supabase.from("control_lists").insert([{
         operator_id: operatorId || null,
-        list_type: "blacklist", entry_type: "imei",
+        list: "blacklist", type: "imei",
         value: imei,
         reason: reason || "Blocage — IMEI blacklisté",
         active: true,
@@ -64,7 +64,7 @@ export async function blockAndBlacklist({ msisdn, imei, imsi, cell_id, operatorI
       if (count >= cellBlacklistThreshold) {
         const { error: e3 } = await supabase.from("control_lists").insert([{
           operator_id: operatorId || null,
-          list_type: "blacklist", entry_type: "cell_id",
+          list: "blacklist", type: "cell_id",
           value: cell_id,
           reason: `Auto-blacklist Cell — ${count} fraudes confirmées sur ${cell_id}`,
           active: true,

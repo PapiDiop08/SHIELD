@@ -60,7 +60,7 @@ async function applyAlertAction(alertId, action, msisdn, operatorId, addLog) {
   await supabase.from("alerts").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", alertId);
   if (action === "block" && msisdn && operatorId) {
     const { data: ex } = await supabase.from("blockings").select("id").eq("msisdn", msisdn).eq("active", true).maybeSingle();
-    if (!ex) await supabase.from("blockings").insert([{ operator_id: operatorId, msisdn, reason: "Blocage SimProfile", source: "analyst", active: true, blocked_at: new Date().toISOString() }]);
+    if (!ex) await supabase.from("blockings").insert([{ operator_id: operatorId, msisdn, reason: "Blocage SimProfile", source: "analyst", active: true }]);
   }
   addLog?.("UPDATE_ALERT_STATUS", "alert", alertId, `SimProfile → ${newStatus} — ${msisdn}`, "SimProfile");
   return newStatus;
@@ -266,7 +266,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
   async function addToList(list, entity, value) {
     if (!window.confirm(`Ajouter ${value} en ${list} ?`)) return;
     const opId = effectiveAlerts[0]?.operator_id || null;
-    await supabase.from("control_lists").insert([{ list_type: list, entry_type: entity, value, reason: "SimProfile", active: true }]);
+    await supabase.from("control_lists").insert([{ list: list, type: entity, value, reason: "SimProfile", active: true }]);
     addEntry?.({ list, type: entity, value, reason: "SimProfile" }, opId);
     addLog?.(`${list.toUpperCase()}_${entity.toUpperCase()}`, "control_list", value, `Ajout ${entity} → ${list}`, "SimProfile");
     alert(`✓ ${value} ajouté en ${list}`);
