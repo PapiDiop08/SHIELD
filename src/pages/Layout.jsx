@@ -12,32 +12,32 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
 
   const navSections = [
     { label: null, items: [
-      { key: "dashboard", label: "Dashboard",   icon: "dashboard" },
-      { key: "alerts",    label: "Détections",  icon: "alerts",    badge: criticalAlerts },
-      { key: "cases",     label: "Cases",        icon: "cases",     badge: openCases },
-      { key: "blockings", label: "Blocages",     icon: "blockings" },
+      { key: "dashboard", label: "Dashboard",         icon: "dashboard" },
+      { key: "alerts",    label: "Alertes",           icon: "alerts",    badge: criticalAlerts },
+      { key: "cases",     label: "Mes Cases",          icon: "cases",     badge: myAlerts },
+      { key: "blockings", label: "Actions Blocage",   icon: "blockings" },
     ]},
     { label: "Détection", items: [
-      { key: "rules",      label: "Règles",    icon: "rules" },
-      { key: "blacklist",  label: "Listes",    icon: "blacklist" },
-      { key: "cells",         label: "Antennes",         icon: "operators" },
-      { key: "complaints",    label: "Plaintes",         icon: "complaints" },
-      { key: "distributors",  label: "Distributeurs SIM", icon: "agents" },
-      { key: "sim_management", label: "Gestion SIM",       icon: "agents" },
-      { key: "simulator",     label: "Simulateur CDR",    icon: "ai" },
+      { key: "rules",          label: "Règles de détection",  icon: "rules" },
+      { key: "blacklist",      label: "Whitelist / Blacklist", icon: "blacklist" },
+      { key: "cells",          label: "Réseau Antennes",       icon: "operators" },
+      { key: "complaints",     label: "Plaintes",              icon: "complaints" },
+      { key: "distributors",   label: "Distributeurs SIM",     icon: "agents" },
+      { key: "sim_management", label: "Gestion SIM",           icon: "agents" },
+      { key: "simulator",      label: "Simulateur CDR",        icon: "ai" },
     ]},
-    { label: "Analyse", items: [
-      { key: "reports",      label: "Rapports",      icon: "reports" },
+    { label: "Analytique", items: [
+      { key: "reports",      label: "Reporting",         icon: "reports" },
       { key: "financial",    label: "Rapport financier", icon: "scoring" },
-      { key: "rules_review", label: "Perf. Règles",  icon: "scoring" },
-      { key: "logs",         label: "Audit Log",     icon: "logs" },
+      { key: "rules_review", label: "Perf. Règles",      icon: "scoring" },
+      { key: "logs",         label: "Journal d'audit",   icon: "logs" },
     ]},
     { label: "Admin", show: can("manageUsers") || can("manageUDF") || can("manageSettings") || isGFM(), items: [
-      ...(can("manageUsers") ? [{ key: "admin",     label: "Utilisateurs", icon: "admin" }] : []),
-      ...(isGFM()            ? [{ key: "operators", label: "Opérateurs",   icon: "operators" }] : []),
-      ...(isGFM()            ? [{ key: "billing",   label: "Facturation",  icon: "billing" }] : []),
-      ...(can("manageUDF")   ? [{ key: "udf",       label: "Champs CDR",   icon: "udf" }] : []),
-      ...(can("manageSettings") ? [{ key: "settings", label: "Paramètres", icon: "settings" }] : []),
+      ...(can("manageUsers") ? [{ key: "admin",     label: "Utilisateurs",     icon: "admin" }] : []),
+      ...(isGFM()            ? [{ key: "operators", label: "Banques Clientes", icon: "operators" }] : []),
+      ...(isGFM()            ? [{ key: "billing",   label: "Facturation",      icon: "billing" }] : []),
+      ...(can("manageUDF")   ? [{ key: "udf",       label: "Champs CDR",       icon: "udf" }] : []),
+      ...(can("manageSettings") ? [{ key: "settings", label: "Paramètres système", icon: "settings" }] : []),
     ].filter(Boolean)},
   ];
 
@@ -46,7 +46,7 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
   const SIDEBAR_W = 225;
 
   return (
-    <div style={{ fontFamily: "'Fira Sans', -apple-system, 'Segoe UI', sans-serif", display: "flex", minHeight: "100vh", background: "#F3F4F6", color: C.text }}>
+    <div style={{ fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif", display: "flex", minHeight: "100vh", background: "#F3F4F6", color: C.text }}>
 
       {/* Sidebar — gradient charcoal GFM */}
       <div style={{ width: SIDEBAR_W, background: sidebarGradient, display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
@@ -113,7 +113,7 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
                         color: active ? "#FFFFFF" : "#94A3B8",
                         cursor: "pointer", fontSize: 12,
                         fontWeight: active ? 600 : 400,
-                        fontFamily: "'Fira Sans', sans-serif",
+                        fontFamily: "'Inter', system-ui, sans-serif",
                         textAlign: "left",
                         transition: "all 0.15s",
                       }}

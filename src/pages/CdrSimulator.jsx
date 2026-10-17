@@ -168,7 +168,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator, re
     const topRule    = triggered.find(r => r.action==='block') || triggered[0];
     const status     = topRule?.action==='block' ? 'FRAUD' : triggered.length>0 ? 'ALERT' : 'OK';
 
-    // Écrire CDR en DB
+    // Écrire CDR en DB (operator_id obligatoire pour que la RLS laisse passer le SELECT dans SimProfile)
     supabase.from('cdr_voice').insert({
       msisdn_a: cdr.msisdn_a, msisdn_b: cdr.msisdn_b,
       imsi: cdr.imsi, imei: cdr.imei, cell_id: cdr.cell_id,
@@ -176,7 +176,10 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator, re
       call_type: cdr.call_type || 'MO',
       is_international: cdr.is_international, is_premium: cdr.is_premium,
       country_code_b: cdr.country_code_b,
-    }).then(() => {});
+      operator_id: currentOperator?.id || null,
+    }).then(({ error: cdrErr }) => {
+      if (cdrErr) console.error('CDR insert error:', cdrErr.message, cdrErr.code);
+    });
 
     // Créer alerte avec fraud_type basé sur le profil (pas juste la règle)
     if (topRule) {

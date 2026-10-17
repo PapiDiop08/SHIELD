@@ -32,9 +32,9 @@ export const C = {
 
   success: "#059669",
   successL: "#ECFDF5",
-  warning: "#D97706",
-  warningL: "#FFFBEB",
-  danger: "#DC2626",
+  warning: "#F97316",
+  warningL: "#FFF7ED",
+  danger: "#C0392B",
   dangerL: "#FEF2F2",
 
   purple: "#7C3AED",
