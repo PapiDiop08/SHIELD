@@ -10,6 +10,7 @@ export function useOperators() {
   const [error, setError] = useState(null);
 
   const fetch = useCallback(async () => {
+    setLoading(true);
     setError(null);
     const { data, error: err } = await supabase.from('operators').select('*').order('name');
     if (!err && data) {
@@ -86,6 +87,7 @@ export function useUsers() {
   const [error, setError] = useState(null);
 
   const fetch = useCallback(async () => {
+    setLoading(true);
     setError(null);
     // NOTE : le compte utilisateur réel vit dans `profiles` (lié à supabase.auth),
     // pas dans une table `users` séparée qui n'existe pas dans ce projet Supabase.
