@@ -200,9 +200,30 @@ export function useRules() {
       .select('*')
       .eq('scope', 'telco')
       .order('triggered', { ascending: false });
+    // Dérive le type fraude depuis le préfixe du nom de la règle
+    const PREFIX_TYPE = {
+      'SIM Box': 'SIM Box', 'Concentration cellule': 'SIM Box',
+      'Wangiri': 'Wangiri',
+      'IRSF': 'IRSF',
+      'ATO': 'SIM Swap', 'IMSI': 'SIM Swap',
+      'Bypass GSM': 'Bypass GSM', 'Bypass confirmé': 'Bypass GSM', 'Bypass': 'Bypass GSM',
+      'PBX Hack': 'PBX Hacking', 'PBX': 'PBX Hacking',
+      'Grey Route': 'Grey Routes',
+      'CLI Spoofing': 'Spoofing CLI', 'Bypass GSM — CLI': 'Spoofing CLI',
+      'Interconnexion': 'Grey Routes', 'Fraude terminaison': 'Grey Routes',
+      'Arnaque': 'Subscription Fraud', 'Spam': 'Subscription Fraud',
+      'Roaming': 'Roaming Fraud',
+      'Flash': 'Flash Calls',
+    };
+    function deriveRuleType(name) {
+      for (const [pfx, t] of Object.entries(PREFIX_TYPE)) {
+        if (name?.startsWith(pfx)) return t;
+      }
+      return null;
+    }
     if (!error && data) {
       setRulesState(data.map(r => ({
-        id: r.id, name: r.name, type: r.description || r.name,
+        id: r.id, name: r.name, type: deriveRuleType(r.name) || r.description || r.name,
         severity: r.severity, action: r.action, scope: r.scope || 'telco',
         active: r.active, triggered: r.triggered || 0, blocked: r.blocked || 0,
         conditions: r.conditions || [], createdBy: r.creator_name,
