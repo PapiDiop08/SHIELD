@@ -39,3 +39,14 @@ sftp/*.out
 # Vite temp files
 vite.config.js.timestamp-*
 *.timestamp-*.mjs
+
+# Secrets : ne jamais committer
+.env
+.env.*
+!.env.example
+!.env.server.example
+*.pem
+*.key
+shield.zip
+__pycache__/
+*.pyc

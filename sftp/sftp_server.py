@@ -19,8 +19,10 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 HOST_KEY_PATH = os.path.join(BASE, "keys", "host_key")
 ROOT_DIR = os.path.join(BASE, "incoming")
 
-USERNAME = "partner_test"
-PASSWORD = os.environ.get("SHIELD_SFTP_PASSWORD", "ShieldPartner2026!")
+USERNAME = os.environ.get("SHIELD_SFTP_USER", "partner_test")
+PASSWORD = os.environ.get("SHIELD_SFTP_PASSWORD")
+if not PASSWORD:
+    raise SystemExit("Définir SHIELD_SFTP_PASSWORD dans l'environnement (aucun mot de passe par défaut).")
 PORT = int(os.environ.get("SHIELD_SFTP_PORT", "2222"))
 
 

@@ -1,8 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
+// Identifiants lus depuis l'environnement (jamais en dur dans le code) :
+//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node insert_realistic_cdr.cjs
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Définir SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY dans l\'environnement.');
+  process.exit(1);
+}
 const sb = createClient(
-  'https://isqprbqxtscjihqqhjqm.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzcXByYnF4dHNjamlocXFoanFtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzUwNDM2NSwiZXhwIjoyMDYzMDgwMzY1fQ.OR22pMvg5WqBpzdkJwkT0FRboflPUoNJUOiJM5jjN2k',
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
   { realtime: { transport: ws } }
 );
 
