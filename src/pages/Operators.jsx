@@ -156,10 +156,10 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                   <span style={{fontWeight:900,fontSize:15,color:C.navy}}>{op.name}</span>
                   <Badge label={op.code||"—"} color={C.navyB} small/>
                   <Badge label={op.active?"Actif":"Inactif"} color={op.active?C.success:C.muted} small/>
-                  {op.packs?.mm&&<Badge label="MM MM" color={C.teal} small/>}
+                  {op.packs?.mm&&<Badge label="Mobile Money" color={C.teal} small/>}
                   {op.packs?.ai&&<Badge label="IA" color={C.purple} small/>}
-                  {op.packs?.deepai&&<Badge label="IA+ IA+" color={C.red} small/>}
-                  {op.packs?.api&&<Badge label="API API" color={C.sky} small/>}
+                  {op.packs?.deepai&&<Badge label="IA avancée" color={C.red} small/>}
+                  {op.packs?.api&&<Badge label="API" color={C.sky} small/>}
                   {op.slaEnabled&&<Badge label="⏱ SLA" color={C.warning} small/>}
                 </div>
                 <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:10}}>
@@ -170,11 +170,11 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                 <div style={{display:"flex",gap:16,fontSize:12,color:C.muted,flexWrap:"wrap"}}>
                   <span>Email {op.contact||op.contacts?.[0]?.email||"—"}</span>
                   <span>Date {op.contractStart}</span>
-                  <span>[ {((op.monthlyFee||0)+totalPackCost).toLocaleString()} XOF/mois</span>
+                  <span>{((op.monthlyFee||0)+totalPackCost).toLocaleString()} XOF/mois</span>
                 </div>
               </div>
               <div style={{display:"flex",gap:8,flexDirection:"column",flexShrink:0}}>
-                <Btn variant="secondary" small onClick={()=>startEdit(op)}>Edit Modifier</Btn>
+                <Btn variant="secondary" small onClick={()=>startEdit(op)}>Modifier</Btn>
                 <Btn variant={op.active?"warning":"success"} small onClick={()=>{ setOperators(p=>p.map(o=>o.id===op.id?{...o,active:!o.active}:o)); addLog?.("TOGGLE_OPERATOR","operator",op.id,`${op.name} ${op.active?"désactivé":"activé"}`,"Opérateurs"); showToast(`${op.name} ${op.active?"désactivé":"activé"}`); }}>
                   {op.active?"Désactiver":"Activer"}
                 </Btn>
@@ -241,7 +241,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
             {step==="contacts"&&(
               <div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-                  <div style={{fontSize:15,fontWeight:700,color:C.navy}}>USR Contacts & Utilisateurs</div>
+                  <div style={{fontSize:15,fontWeight:700,color:C.navy}}>Contacts & utilisateurs</div>
                   <Btn variant="secondary" small onClick={addContact}>+ Ajouter un contact</Btn>
                 </div>
                 <div style={{background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:12,color:C.navy}}>
@@ -268,7 +268,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                         </div>
                       ))}
                       <div>
-                        <label style={{display:"block",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:5}}>Rôle dans SHIELD</label>
+                        <label style={{display:"block",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:5}}>Rôle dans AAR Telco</label>
                         <select value={c.role||"analyst"} onChange={e=>updateContact(i,"role",e.target.value)}
                           style={{width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"8px 10px",fontSize:12,color:C.navy,background:C.white,outline:"none"}}>
                           {["admin","analyst","supervisor"].map(r=><option key={r} value={r}>{ROLES[r]?.icon} {ROLES[r]?.label}</option>)}
@@ -471,7 +471,7 @@ export default function Operators({ operators, setOperators, users, setUsers, ad
                 </div>
 
                 <div style={{background:C.bg,borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:10}}>{form.fraudTypes?.length||0})</div>
+                  <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:10}}>Types de fraude couverts ({form.fraudTypes?.length||0})</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                     {(form.fraudTypes||[]).slice(0,10).map(t=><Badge key={t} label={t} color={C.sky} small/>)}
                     {(form.fraudTypes?.length||0)>10&&<Badge label={`+${form.fraudTypes.length-10} autres`} color={C.muted} small/>}

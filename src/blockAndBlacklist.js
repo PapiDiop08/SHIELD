@@ -20,7 +20,7 @@ export async function blockAndBlacklist({ msisdn, imei, imsi, cell_id, operatorI
     const { data: blocking, error: blockErr } = await supabase.from("blockings").insert([{
       operator: operatorId || 'AAR Telco',
       msisdn: msisdn || null,
-      reason: reason || "Blocage manuel SHIELD",
+      reason: reason || "Blocage manuel AAR Telco",
       source: "analyst",
       active: true,
       created_at: new Date().toISOString(),
@@ -79,7 +79,7 @@ export async function blockAndBlacklist({ msisdn, imei, imsi, cell_id, operatorI
     const cellInfo = results.cellBlacklisted ? ` + Cell ${cell_id} BL auto` : "";
     addLog?.("BLOCK_AND_BLACKLIST", "msisdn", msisdn,
       `Blocage + BL [${listsSummary}]${cellInfo} — ${reason}`,
-      "SHIELD"
+      "AAR Telco"
     );
 
     return results;

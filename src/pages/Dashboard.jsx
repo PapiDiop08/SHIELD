@@ -68,7 +68,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
     .sort((a, b) => b[1] - a[1]).slice(0, 6)
     .map(([name, value], i) => ({ name, value, color: PIE_COLORS[i] }));
 
-  // Alertes récentes — depuis props (même source que Détections)
+  // Alertes récentes — depuis props 
   const recentAlerts = [...safeAlerts]
     .sort((a, b) => new Date(b.createdAt || b.detected_at || 0) - new Date(a.createdAt || a.detected_at || 0))
     .slice(0, 10);
@@ -99,7 +99,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
 
   const formatTime = (dateStr) => {
     if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -136,13 +136,13 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
             </div>
             <span style={{ fontSize: 12, fontWeight: 700,
               color: simActive ? C.success : C.muted, whiteSpace: "nowrap" }}>
-              {simActive ? "R Simulation ON" : "Simulation OFF"}
+              {simActive ? "Simulation ON" : "Simulation OFF"}
             </span>
           </div>
           <button onClick={() => window.location.reload()} style={{
             background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8,
             padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12,
-          }}>Sync Actualiser</button>
+          }}>Actualiser</button>
         </div>
       </div>
 
@@ -153,7 +153,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
           borderRadius: 10, padding: "12px 18px", marginBottom: 20,
           cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
         }}>
-          <span style={{ fontSize: 18 }}>[!]</span>
+          <span style={{ fontSize: 16, fontWeight: 900 }}>!</span>
           <span style={{ fontWeight: 700, color: C.warning, fontSize: 14 }}>
             {myAlerts.length} détection{myAlerts.length > 1 ? "s" : ""} assignée{myAlerts.length > 1 ? "s" : ""} à vous
           </span>
@@ -167,8 +167,8 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
         <Stat value={fraudsBlocked} label="Fraudes bloquées" color={C.danger} icon="blockings"
           sub={safeAlerts.length ? `${Math.round(fraudsBlocked/safeAlerts.length*100)}% taux` : "—"} />
         <Stat value={activeRules} label="Règles actives" color={C.warning} icon="rules" />
-        <Stat value={openCases} label="Cases ouverts" color={C.purple} icon="cases" />
-        <Stat value={`${(fraudsBlocked * 4200 / 1000000).toFixed(1)}M XOF`} label="Économies est." color={C.success} icon="billing" />
+        <Stat value={openCases} label="Dossiers ouverts" color={C.purple} icon="cases" />
+        <Stat value={`${(fraudsBlocked * 45000 / 1000000).toFixed(1)} M XOF`} label="Économies est." color={C.success} icon="billing" />
       </div>
 
       {/* Tendance + Pie */}
@@ -247,7 +247,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
       {/* Anomalies antennes */}
       <Card style={{ padding: "16px 20px", marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>ANT Anomalies antennes</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>Anomalies antennes</div>
           <button onClick={() => navigate("cells")} style={{ background: "none", border: "none", color: C.sky, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
             Voir toutes →
           </button>
@@ -280,7 +280,7 @@ export default function Dashboard({ alerts, rules, cases, setSimProfile, navigat
           <div style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>
             Alertes récentes
             <span style={{ fontSize: 11, color: C.muted, fontWeight: 400, marginLeft: 8 }}>
-              (même source que Détections)
+              
             </span>
           </div>
           <button onClick={() => navigate("alerts")} style={{ background: "none", border: "none", color: C.sky, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>

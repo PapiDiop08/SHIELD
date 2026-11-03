@@ -28,7 +28,7 @@ import RulesReview from "./pages/RulesReview.jsx";
 
 import {
   useAlerts, useRules, useBlockings, useOperators,
-  useUsers, useComplaints, useControlLists, saveLogToSupabase
+  useUsers, useComplaints, useControlLists, useCases, saveLogToSupabase
 } from "./hooks/useSupabase.js";
 
 import { ALL_FRAUD_TYPES } from "./theme.js";
@@ -80,7 +80,7 @@ function DataErrorScreen({ issues, onRetry }) {
       </svg>
       <div style={{ color: "#fff", fontWeight: 800, fontSize: 18, maxWidth: 480 }}>Connexion aux données impossible</div>
       <div style={{ color: "#8A9BB5", fontSize: 13, maxWidth: 480, lineHeight: 1.6 }}>
-        SHIELD n'affiche jamais de données fictives à la place de vraies données. Corrigez le point ci-dessous puis réessayez.
+        AAR Telco n'affiche jamais de données fictives à la place de vraies données. Corrigez le point ci-dessous puis réessayez.
       </div>
       <div style={{ background: "rgba(232,93,32,0.1)", border: "1px solid rgba(232,93,32,0.35)", borderRadius: 10, padding: "14px 18px", maxWidth: 480, textAlign: "left" }}>
         {issues.map((msg, i) => (
@@ -107,6 +107,7 @@ function AppInner() {
   const { alerts, setAlerts, updateAlertStatus, assignAlert } = useAlerts(null);
   const { rules, setRules, createRule, updateRule, toggleRule, deleteRule, refetch: refetchRules } = useRules();
   const { blockings, setBlockings, createBlocking, unblock, reblock } = useBlockings(null);
+  const { cases: dbCases } = useCases(null);
   const { blacklist, setBlacklist, addEntry, toggleEntry, deleteEntry, moveEntry } = useControlLists(null);
   const { complaints, setComplaints } = useComplaints(null);
 
@@ -213,25 +214,25 @@ function AppInner() {
     createOperator, updateOperator,
     createUser, updateUser,
     currentOperator, operatorIdFilter,
-    cases: [],
+    cases: dbCases,
     currentUser,
   };
 
   return (
     <Layout
       page={page} setPage={navigate}
-      alerts={alerts} cases={[]}
+      alerts={alerts} cases={dbCases}
       onProfileClick={() => setShowUserProfile(true)}
     >
       {page === "dashboard"  && <Dashboard  {...sharedProps} />}
       {page === "alerts"     && <Detections {...sharedProps} />}
       {page === "cases"      && <Cases      {...sharedProps} />}
-      {page === "rules"      && <Rules      {...sharedProps} cases={[]} />}
+      {page === "rules"      && <Rules      {...sharedProps} />}
       {page === "blacklist"  && <Lists      {...sharedProps} />}
       {page === "cells"      && <Cells      {...sharedProps} />}
       {page === "complaints" && <Complaints {...sharedProps} />}
-      {page === "reports"    && <Reports    {...sharedProps} cases={[]} />}
-      {page === "financial"   && <FinancialReporting {...sharedProps} cases={[]} />}
+      {page === "reports"    && <Reports    {...sharedProps} />}
+      {page === "financial"   && <FinancialReporting {...sharedProps} />}
       {page === "logs"       && <Logs       addLog={addLogEnhanced} users={users} logs={logs || []} />}
       {page === "admin"      && <Admin      {...sharedProps} />}
       {page === "udf"        && <UDFManager addLog={addLogEnhanced} />}

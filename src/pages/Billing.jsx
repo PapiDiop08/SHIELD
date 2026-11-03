@@ -11,7 +11,7 @@ import { supabase } from "../supabase.js";
 function exportBillingCSV(rows, filename, currentMonth) {
   const headers = ["Operateur", "Abonnement_Base_XOF", "Detections", "Cout_Detections_XOF", "Blocages", "Cout_Blocages_XOF", "Pack_MM_XOF", "Pack_IA_XOF", "Usage_IA_XOF", "Total_XOF"];
   const lines = [
-    `Facturation SHIELD — ${currentMonth}`,
+    `Facturation AAR Telco - ${currentMonth}`,
     headers.join(";"),
     ...rows.map(o => [
       o.name || "",
@@ -113,7 +113,7 @@ export default function Billing({ operators, alerts, blockings }) {
               style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
               Sync
             </button>
-            <Btn variant="secondary" onClick={() => exportBillingCSV(opBills, `facturation_shield_${currentMonthKey}.csv`, currentMonth)}>Import Exporter Excel</Btn>
+            <Btn variant="secondary" onClick={() => exportBillingCSV(opBills, `facturation_shield_${currentMonthKey}.csv`, currentMonth)}>Exporter Excel</Btn>
             <Btn onClick={() => window.print()}>Générer factures PDF</Btn>
           </div>
         }
@@ -228,7 +228,7 @@ export default function Billing({ operators, alerts, blockings }) {
               <div>
                 <div style={{ fontSize: 12, color: C.muted }}>Total facturable</div>
                 <div style={{ fontSize: 26, fontWeight: 900, color: C.success }}>
-                  {opBills.find(b => b.operator.id === showDetail.id)?.total?.toLocaleString() || 0} XOF
+                  {opBills.find(b => (b.operator?.id ?? b.id) === showDetail.id)?.total?.toLocaleString() || 0} XOF
                 </div>
               </div>
               <Btn onClick={() => setShowDetail(null)}>Fermer</Btn>

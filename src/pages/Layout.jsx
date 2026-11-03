@@ -34,7 +34,7 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
     ]},
     { label: "Admin", show: can("manageUsers") || can("manageUDF") || can("manageSettings") || isGFM(), items: [
       ...(can("manageUsers") ? [{ key: "admin",     label: "Utilisateurs",     icon: "admin" }] : []),
-      ...(isGFM()            ? [{ key: "operators", label: "Banques Clientes", icon: "operators" }] : []),
+      ...(isGFM()            ? [{ key: "operators", label: "Opérateurs clients", icon: "operators" }] : []),
       ...(isGFM()            ? [{ key: "billing",   label: "Facturation",      icon: "billing" }] : []),
       ...(can("manageUDF")   ? [{ key: "udf",       label: "Champs CDR",       icon: "udf" }] : []),
       ...(can("manageSettings") ? [{ key: "settings", label: "Paramètres système", icon: "settings" }] : []),
@@ -139,13 +139,6 @@ export default function Layout({ page, setPage, children, alerts, cases, onProfi
 
         {/* Footer */}
         <div style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-          <button
-            onClick={() => window.open("http://localhost:5173", "_blank")}
-            style={{ width: "100%", background: "transparent", border: "1px solid rgba(255,255,255,0.12)", color: "#94A3B8", borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 7, marginBottom: 6, fontFamily: "inherit" }}
-            onMouseOver={e => { e.currentTarget.style.borderColor = C.blue; e.currentTarget.style.color = C.blue; }}
-            onMouseOut={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "#94A3B8"; }}>
-            <Icon name="switch" size={13} color="currentColor" /> AAR Mobile Money
-          </button>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
             <span style={{ position: "relative", display: "inline-flex" }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.success, display: "block" }} />

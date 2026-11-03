@@ -71,7 +71,7 @@ export default function Admin({ users, setUsers, operators, addLog, createUser }
 
   const filtered = visibleUsers.filter(u => {
     const q = search.toLowerCase();
-    const matchSearch = u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q);
+    const matchSearch = (u.name||"").toLowerCase().includes(q)||(u.email||"").toLowerCase().includes(q);
     const matchRole = filterRole==="all"||u.role===filterRole;
     const matchOp = filterOp==="all"||(filterOp==="gfm"&&!u.operator)||(filterOp==="aar"&&!u.operator)||(u.operator===filterOp);
     return matchSearch&&matchRole&&matchOp;
@@ -242,7 +242,7 @@ export default function Admin({ users, setUsers, operators, addLog, createUser }
             <p style={{margin:0,fontSize:12,color:C.textL}}>Définissez les permissions par rôle. Cliquez sur une case pour la modifier.</p>
             {currentUser?.role==="superadmin"&&(
               <Btn onClick={savePerms} style={{background:permsSaved?C.success:C.red}}>
-                {permsSaved?"v Sauvegardé":"Sauvegarder les permissions"}
+                {permsSaved?"Sauvegardé":"Sauvegarder les permissions"}
               </Btn>
             )}
           </div>
@@ -312,7 +312,7 @@ export default function Admin({ users, setUsers, operators, addLog, createUser }
           {currentUser?.role==="superadmin"&&(
             <div style={{textAlign:"right",marginTop:16}}>
               <Btn onClick={savePerms} style={{background:permsSaved?C.success:C.red,fontSize:15,padding:"12px 28px"}}>
-                {permsSaved?"v Permissions sauvegardées":"Sauvegarder les permissions"}
+                {permsSaved?"Permissions sauvegardées":"Sauvegarder les permissions"}
               </Btn>
             </div>
           )}
@@ -323,7 +323,7 @@ export default function Admin({ users, setUsers, operators, addLog, createUser }
       {showCreate&&(
         <Modal title="Nouvel utilisateur" onClose={()=>setShowCreate(false)} width={460}>
           <div style={{padding:"18px 20px"}}>
-            {[["Nom complet","name","text","Ex: Moussa Diallo"],["Email","email","email","Ex: moussa@orange.sn"]].map(([l,k,t,p])=>(
+            {[["Nom complet","name","text","Ex: Moussa Diallo"],["Email","email","email","Ex: moussa@promobile.sn"]].map(([l,k,t,p])=>(
               <div key={k} style={{marginBottom:14}}>
                 <label style={{display:"block",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",marginBottom:6}}>{l}</label>
                 <input type={t} value={newUser[k]} onChange={e=>setNewUser(f=>({...f,[k]:e.target.value}))} placeholder={p}
@@ -352,7 +352,7 @@ export default function Admin({ users, setUsers, operators, addLog, createUser }
               </select>
             </div>
             <div style={{background:C.warningL||"#FFF6E5",border:`1px solid ${C.warning}55`,borderRadius:8,padding:"10px 14px",marginBottom:18,fontSize:12,color:C.textL}}>
-              Attention : ceci crée uniquement la fiche profil de <strong>{newUser.email||"l'utilisateur"}</strong> dans SHIELD. Aucun email n'est envoyé et aucun compte de connexion n'est créé — pour que cette personne puisse se connecter, invitez-la séparément depuis Supabase Auth (Authentication → Invite user) avec le même email, puis reliez son compte ici si besoin.
+              Attention : ceci crée uniquement la fiche profil de <strong>{newUser.email||"l'utilisateur"}</strong> dans AAR Telco. Aucun email n'est envoyé et aucun compte de connexion n'est créé — pour que cette personne puisse se connecter, invitez-la séparément depuis Supabase Auth (Authentication → Invite user) avec le même email, puis reliez son compte ici si besoin.
             </div>
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" onClick={()=>setShowCreate(false)} style={{flex:1,justifyContent:"center"}}>Annuler</Btn>

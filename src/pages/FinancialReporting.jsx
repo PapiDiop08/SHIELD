@@ -53,7 +53,7 @@ const COLORS_LIST = [C.red, C.sky, C.teal, C.warning, C.purple, C.success, C.nav
 
 export default function FinancialReporting({ alerts, blockings, rules, cases }) {
   const { currentUser } = useAuth();
-  const [period, setPeriod] = useState("month");
+  const [period, setPeriod] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -127,7 +127,7 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
 
   return (
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
-      <SectionHeader title="Financial Reporting" sub="Analyse financière et statistiques par type de fraude"
+      <SectionHeader title="Reporting financier" sub="Analyse financière et statistiques par type de fraude"
         action={<Btn variant="ghost" onClick={() => exportCSV(byType, period)}>Exporter CSV</Btn>} />
 
       {/* Filters */}
@@ -348,7 +348,7 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
               <div style={{ fontSize: 11, color: C.textL }}>Taux global</div>
             </Card>
             <Card style={{ flex: 1, minWidth: 120, padding: "14px 18px", borderTop: `3px solid ${C.success}` }}>
-              <div style={{ fontSize: 22, fontWeight: 900, color: C.success }}>{fpRate <= 5 ? "v Bon" : fpRate <= 10 ? "! Moyen" : "Élevé"}</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: C.success }}>{fpRate <= 5 ? "Bon" : fpRate <= 10 ? "Moyen" : "Élevé"}</div>
               <div style={{ fontSize: 11, color: C.textL }}>Niveau qualité</div>
             </Card>
             <Card style={{ flex: 2, minWidth: 200, padding: "14px 18px" }}>
@@ -377,7 +377,7 @@ export default function FinancialReporting({ alerts, blockings, rules, cases }) 
                         <td style={{ padding: "10px 14px", fontSize: 13, color: C.textL }}>{t.total}</td>
                         <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.warning }}>{t.fp}</td>
                         <td style={{ padding: "10px 14px" }}><Badge label={`${fpR}%`} color={fpR > 10 ? C.danger : fpR > 5 ? C.warning : C.success} small /></td>
-                        <td style={{ padding: "10px 14px", fontSize: 11, color: C.muted }}>{fpR > 10 ? "! Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "v Normal"}</td>
+                        <td style={{ padding: "10px 14px", fontSize: 11, color: C.muted }}>{fpR > 10 ? "! Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "Normal"}</td>
                       </tr>
                     );
                   })}

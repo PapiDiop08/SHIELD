@@ -240,7 +240,7 @@ export default function UDFManager({ addLog }) {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
             <thead>
               <tr style={{ background: C.bg, borderBottom: `2px solid ${C.mutedL}` }}>
-                {["Actif", "Clé SHIELD", "Label", "Catégorie", "Source CDR", "Unité", "Description", ""].map(h => (
+                {["Actif", "Clé du champ", "Label", "Catégorie", "Source CDR", "Unité", "Description", ""].map(h => (
                   <th key={h} style={{ padding: "9px 12px", fontSize: 9, fontWeight: 700, color: C.muted, textTransform: "uppercase", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -319,7 +319,7 @@ export default function UDFManager({ addLog }) {
             )}
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-              {[["Clé SHIELD *", "key", "ex: call_count_out"], ["Label affiché *", "label", "Ex: Appels sortants"], ["Source CDR", "cdrField", "Ex: cdr_voice.msisdn_a"], ["Unité", "unit", "Ex: sec, MB, XOF"]].map(([l, k, p]) => (
+              {[["Clé du champ *", "key", "ex: call_count_out"], ["Label affiché *", "label", "Ex: Appels sortants"], ["Source CDR", "cdrField", "Ex: cdr_voice.msisdn_a"], ["Unité", "unit", "Ex: sec, MB, XOF"]].map(([l, k, p]) => (
                 <div key={k}>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 5 }}>{l}</label>
                   <input
@@ -368,7 +368,7 @@ export default function UDFManager({ addLog }) {
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="ghost" onClick={() => { setShowAdd(false); setEditField(null); }} style={{ flex: 1, justifyContent: "center" }}>Annuler</Btn>
               <Btn onClick={saveField} disabled={!newField.key || !newField.label || saving} style={{ flex: 2, justifyContent: "center" }}>
-                {saving ? "Sauvegarde…" : editField ? "Save Sauvegarder" : "Ajouter le champ"}
+                {saving ? "Sauvegarde…" : editField ? "Sauvegarder" : "Ajouter le champ"}
               </Btn>
             </div>
           </div>

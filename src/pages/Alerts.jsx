@@ -110,6 +110,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
   }
 
   function doConfirmedAction() {
+    if (confirm?.bulk && confirm?.block) { blockSelected(); setConfirm(null); return; }
     if (!confirm) return;
     if (confirm.bulk) {
       selected.forEach(id => doUpdateStatus(id, confirm.status));
@@ -158,7 +159,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
             {/* Bouton télécharger CSV */}
             <div style={{ position: "relative" }}>
               <Btn variant="secondary" onClick={() => setShowDownloadMenu(!showDownloadMenu)}>
-                Import Télécharger CSV
+                Télécharger CSV
               </Btn>
               {showDownloadMenu && (
                 <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: C.white, border: `1px solid ${C.mutedL}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 99, minWidth: 260, overflow: "hidden" }}>
@@ -237,7 +238,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
         {hasFilters && (
           <button onClick={() => { setSearch(""); setFilterSev("all"); setFilterStatus("all"); setFilterType("all"); setFilterAssigned("all"); setDateFrom(""); setDateTo(""); }}
             style={{ background: "none", border: "none", color: C.red, fontSize: 12, cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>
-            X Effacer
+            Effacer
           </button>
         )}
       </div>
@@ -256,7 +257,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
 
           {/* Assigner */}
           <div style={{ position: "relative" }}>
-            <Btn variant="sky" small onClick={() => setShowAssignMenu(!showAssignMenu)}>USR Assigner</Btn>
+            <Btn variant="sky" small onClick={() => setShowAssignMenu(!showAssignMenu)}>Assigner</Btn>
             {showAssignMenu && (
               <div style={{ position: "absolute", top: "100%", right: 0, background: C.white, border: `1px solid ${C.mutedL}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 99, minWidth: 200, marginTop: 4, maxHeight: 240, overflowY: "auto" }}>
                 {analysts.map(u => (
@@ -272,21 +273,21 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
           </div>
 
           <Btn variant="warning" small onClick={() => { selected.forEach(id => doUpdateStatus(id, "investigating")); setSelected([]); }}>
-            Rch En cours
+            En cours
           </Btn>
 
           {/* Bloquer manuellement — option pour clients sans auto-block */}
-          <Btn variant="danger" small onClick={() => setConfirm({ bulk: true, status: "blocked", msg: `Bloquer manuellement ${selected.length} détection(s) ?` })}>
-            [X] Bloquer ({selected.length})
+          <Btn variant="danger" small onClick={() => setConfirm({ bulk: true, status: "blocked", block: true, msg: `Bloquer manuellement ${selected.length} détection(s) ?` })}>
+            Bloquer ({selected.length})
           </Btn>
 
           <Btn variant="success" small onClick={() => setConfirm({ alertId: null, status: "cleared", bulk: true, msg: `Clôturer ${selected.length} détections ?` })}>
-            v Clôturer
+            Clôturer
           </Btn>
 
           {/* Export sélection */}
           <Btn variant="ghost" small onClick={() => exportCSV((alerts||[]).filter(a => selected.includes(a.id)), "selection_detections.csv")}>
-            Import CSV
+            Exporter CSV
           </Btn>
         </div>
       )}
@@ -299,7 +300,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
         {toBlock.length > 0 && (
           <button onClick={() => exportCSV(toBlock, "detections_a_bloquer.csv")}
             style={{ background: C.dangerL, border: `1px solid ${C.danger}44`, color: C.danger, borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-            Import Exporter les {toBlock.length} à bloquer
+            Exporter les {toBlock.length} à bloquer
           </button>
         )}
       </div>
@@ -390,7 +391,7 @@ export default function Detections({ alerts, setAlerts, cases, users, setSimProf
                         <select value={a.status}
                           onChange={e => setConfirm({ alertId: a.id, status: e.target.value, bulk: false, msg: `Confirmer : ${statusLabel(e.target.value)} pour ${a.msisdn} ?` })}
                           style={{ border: `1px solid ${C.mutedL}`, borderRadius: 6, padding: "3px 5px", fontSize: 10, color: C.navy, background: C.white, cursor: "pointer", maxWidth: 90 }}>
-                          {["alert", "monitor", "investigating", "blocked", "cleared", "false_positive"].map(s =>
+                          {["open", "alert", "monitor", "investigating", "blocked", "cleared", "false_positive"].map(s =>
                             <option key={s} value={s}>{statusLabel(s)}</option>
                           )}
                         </select>

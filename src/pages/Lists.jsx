@@ -35,7 +35,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
 
   const current = useMemo(() => {
     let list = activeTab === "all" ? blacklist : blacklist.filter(e => e.list === activeTab);
-    if (search) list = list.filter(e => e.value.toLowerCase().includes(search.toLowerCase()) || e.reason.toLowerCase().includes(search.toLowerCase()));
+    if (search) list = list.filter(e => (e.value||"").toLowerCase().includes(search.toLowerCase()) || (e.reason||"").toLowerCase().includes(search.toLowerCase()));
     if (filterType !== "all") list = list.filter(e => e.type === filterType);
     if (filterStatus === "active") list = list.filter(e => e.active);
     if (filterStatus === "inactive") list = list.filter(e => !e.active);
@@ -96,7 +96,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
 
       <SectionHeader title="Listes de contrôle" sub={`${bl.filter(e=>e.active).length} BL · ${wl.filter(e=>e.active).length} WL · ${wa.filter(e=>e.active).length} WA`}
         action={<>
-          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>Export Import</Btn>
+          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>Importer</Btn>
           <Btn small onClick={()=>setShowAdd(true)}>+ Ajouter</Btn>
         </>} />
 
@@ -252,7 +252,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
                     <td style={{ padding:"10px",cursor:"pointer",minWidth:140 }} onClick={()=>setDetailEntry(e)}>
                       <div style={{ fontFamily:"monospace",fontSize:12,fontWeight:700,color:C.navy }}>{e.value}</div>
                       {e.lastMatch&&<div style={{ fontSize:10,color:C.muted }}>Dernier match : {e.lastMatch}</div>}
-                      {e.daysLeft!==undefined&&<div style={{ fontSize:10,color:C.warning,fontWeight:600 }}>⏱ {e.daysLeft}j</div>}
+                      {e.daysLeft!=null&&<div style={{ fontSize:10,color:C.warning,fontWeight:600 }}>⏱ {e.daysLeft}j</div>}
                     </td>
                     <td style={{ padding:"10px",fontSize:11,color:C.textL,maxWidth:200 }}><div style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{e.reason}</div></td>
                     <td style={{ padding:"10px" }}>
@@ -298,7 +298,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
             </div>
             {detailEntry.type==="MSISDN"&&(
               <div style={{ background:C.skyL,border:`1px solid ${C.sky}33`,borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                <span style={{ fontSize:13,color:C.navy,fontWeight:600 }}>MOB Profil SIM disponible</span>
+                <span style={{ fontSize:13,color:C.navy,fontWeight:600 }}>Profil SIM disponible</span>
                 <Btn variant="sky" small onClick={()=>{setSimProfile({msisdn:detailEntry.value,score:75,fraudType:detailEntry.reason});setDetailEntry(null);}}>Voir →</Btn>
               </div>
             )}
@@ -309,7 +309,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
                 {activeTab==="blacklist"&&<Btn variant="success" small onClick={()=>{handleMove(detailEntry.id,"whitelist");setDetailEntry(null);}}>OK → WL</Btn>}
                 {activeTab==="blacklist"&&<Btn variant="purple" small onClick={()=>{handleMove(detailEntry.id,"watchlist");setDetailEntry(null);}}>→ WA</Btn>}
                 {activeTab!=="blacklist"&&<Btn variant="danger" small onClick={()=>{handleMove(detailEntry.id,"blacklist");setDetailEntry(null);}}>→ BL</Btn>}
-                <Btn variant="ghost" small onClick={()=>{handleDelete(detailEntry.id);setDetailEntry(null);}}>Del Supprimer</Btn>
+                <Btn variant="ghost" small onClick={()=>{handleDelete(detailEntry.id);setDetailEntry(null);}}>Supprimer</Btn>
               </div>
             </div>
           </div>
@@ -325,7 +325,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
               {BL_TYPES.map(t=><button key={t} onClick={()=>setAddForm(f=>({...f,type:t}))} style={{ padding:"4px 9px",background:addForm.type===t?(TYPE_COLORS[t]+"18"):C.bg,border:`1px solid ${addForm.type===t?TYPE_COLORS[t]:C.mutedL}`,borderRadius:8,color:addForm.type===t?TYPE_COLORS[t]:C.textL,cursor:"pointer",fontSize:11,fontWeight:addForm.type===t?700:400 }}>{t}</button>)}
             </div>
             <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Valeur</p>
-            <input value={addForm.value} onChange={e=>setAddForm(f=>({...f,value:e.target.value}))} placeholder="Ex: 77654XXXXX" style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",fontFamily:"monospace",marginBottom:12 }} />
+            <input value={addForm.value} onChange={e=>setAddForm(f=>({...f,value:e.target.value}))} placeholder="Ex : 221771234567" style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",fontFamily:"monospace",marginBottom:12 }} />
             <p style={{ margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase" }}>Raison</p>
             <input value={addForm.reason} onChange={e=>setAddForm(f=>({...f,reason:e.target.value}))} placeholder="Ex: SIM Box confirmée..." style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.navy,outline:"none",boxSizing:"border-box",marginBottom:(activeTab==="watchlist")?(12):18 }} />
             {activeTab==="watchlist"&&(
@@ -384,7 +384,7 @@ export default function Lists({ blacklist, setBlacklist, setSimProfile, users, a
                     reader.readAsText(file);
                   }} style={{ cursor:"pointer",fontSize:12,color:C.navy }} />
                 </div>
-                <textarea value={importRaw} onChange={e=>setImportRaw(e.target.value)} placeholder={"77654XXXXX\n78901XXXXX\n..."} rows={5} style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.navy,outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"monospace" }} />
+                <textarea value={importRaw} onChange={e=>setImportRaw(e.target.value)} placeholder={"221771234567\n221781234567\n..."} rows={5} style={{ width:"100%",border:`1px solid ${C.mutedL}`,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.navy,outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:"monospace" }} />
                 <p style={{ margin:"4px 0 14px",fontSize:11,color:C.muted }}>{importRaw.split("\n").filter(Boolean).length} entrées détectées</p>
                 <div style={{ display:"flex",gap:8 }}><Btn variant="ghost" onClick={()=>setShowImport(false)} style={{ flex:1,justifyContent:"center" }}>Annuler</Btn><Btn onClick={()=>setImportStep(2)} disabled={!importRaw.trim()} style={{ flex:2,justifyContent:"center" }}>Prévisualiser →</Btn></div>
               </div>

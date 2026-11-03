@@ -25,15 +25,15 @@ const ACTION_COLORS = {
 };
 
 const ACTION_ICONS = {
-  LOGIN: "AUTH", LOGOUT: "⎋",
-  CREATE_RULE: "CFG", EDIT_RULE: "Edit",
-  BLOCK_SIM: "[X]", BLOCK_SIM_MANUAL: "[X]", UNBLOCK_SIM: "OK",
-  ADD_BLACKLIST: "LOG", ASSIGN_ALERT: "USR",
-  CREATE_CASE: "Doc", CREATE_USER: "USR",
-  CHANGE_ROLE: "SEC", RESET_PASSWORD: "KEY", CHANGE_PASSWORD: "KEY",
-  VIEW_PAGE: "WATCH", ADD_NOTE: "NOTE",
-  AI_ANALYSIS_START: "IA", AI_ANALYSIS_DONE: "OK",
-  BLACKLIST_CELL: "ANT",
+  LOGIN: "→", LOGOUT: "←",
+  CREATE_RULE: "+", EDIT_RULE: "✎",
+  BLOCK_SIM: "⛔", BLOCK_SIM_MANUAL: "⛔", UNBLOCK_SIM: "✓",
+  ADD_BLACKLIST: "⛔", ASSIGN_ALERT: "→",
+  CREATE_CASE: "+", CREATE_USER: "+",
+  CHANGE_ROLE: "✎", RESET_PASSWORD: "✎", CHANGE_PASSWORD: "✎",
+  VIEW_PAGE: "·", ADD_NOTE: "✎",
+  AI_ANALYSIS_START: "IA", AI_ANALYSIS_DONE: "✓",
+  BLACKLIST_CELL: "⛔",
 };
 
 // ── Hook : audit_logs depuis AAR DB ────────────────────────────────────
@@ -124,12 +124,12 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
   return (
     <div style={{ padding: "24px 20px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
-        title="Audit Log"
+        title="Journal d'audit"
         sub={loading ? "Chargement…" : `${allLogs.length} événements · Registre d'activité`}
         action={
           <button onClick={refetch}
             style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
-            Sync Actualiser
+            Actualiser
           </button>
         }
       />
@@ -178,7 +178,7 @@ export default function Logs({ logs: liveLogs, addLog, users }) {
         {(search || filterAction !== "all" || filterUser !== "all") && (
           <button onClick={() => { setSearch(""); setFilterAction("all"); setFilterUser("all"); }}
             style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-            X Effacer
+            Effacer
           </button>
         )}
       </div>

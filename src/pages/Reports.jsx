@@ -51,7 +51,7 @@ function inPeriod(dateStr, period) {
 }
 
 export default function Reports({ alerts, rules, blacklist, cases, blockings }) {
-  const [period, setPeriod] = useState("month");
+  const [period, setPeriod] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -166,7 +166,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
         {selectedType !== "all" && (
           <button onClick={() => setSelectedType("all")}
             style={{ background: "none", border: "none", color: C.danger, fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-            X Effacer
+            Effacer
           </button>
         )}
         <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>
@@ -177,7 +177,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <Stat value={filtered.length} label="Détections" color={C.sky} icon="[*]" sub={PERIODS.find(p => p.value === period)?.label} />
-        <Stat value={blocked.length} label="Fraudes bloquées" color={C.danger} icon="[X]" sub={`${detRate}% taux`} />
+        <Stat value={blocked.length} label="Fraudes bloquées" color={C.danger} icon="blockings" sub={`${detRate}% taux`} />
         <Stat value={`${(totalSaved / 1000000).toFixed(1)}M XOF`} label="Revenus sauvés (est.)" color={C.success} icon="FIN" />
         <Stat value={`${fpRate}%`} label="Taux faux positifs" color={fpRate > 10 ? C.danger : fpRate > 5 ? C.warning : C.success} icon="!" />
         <Stat value={(rules||[]).filter(r => r.active).length} label="Règles actives" color={C.warning} icon="CFG" />
@@ -422,7 +422,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
             </Card>
             <Card style={{ flex: 1, minWidth: 120, padding: "14px 18px", borderTop: `3px solid ${C.success}` }}>
               <div style={{ fontSize: 22, fontWeight: 900, color: C.success }}>
-                {fpRate <= 5 ? "v Bon" : fpRate <= 10 ? "! Moyen" : "Élevé"}
+                {fpRate <= 5 ? "Bon" : fpRate <= 10 ? "Moyen" : "Élevé"}
               </div>
               <div style={{ fontSize: 11, color: C.textL }}>Qualité</div>
             </Card>
@@ -452,7 +452,7 @@ export default function Reports({ alerts, rules, blacklist, cases, blockings }) 
                         <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: C.warning }}>{t.fp}</td>
                         <td style={{ padding: "10px 14px" }}><Badge label={`${fpR}%`} color={fpR > 10 ? C.danger : fpR > 5 ? C.warning : C.success} small /></td>
                         <td style={{ padding: "10px 14px", fontSize: 11, color: C.muted }}>
-                          {fpR > 10 ? "! Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "v Normal"}
+                          {fpR > 10 ? "! Revoir le seuil de la règle" : fpR > 5 ? "Surveiller" : "Normal"}
                         </td>
                       </tr>
                     );

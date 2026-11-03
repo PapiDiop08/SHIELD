@@ -156,7 +156,7 @@ export function useAlerts(operatorFilter) {
         createdAt: a.created_at || a.detected_at,
         msisdn: a.msisdn, imei: a.imei || '', imsi: a.imsi || '',
         cellId: a.cell_id || '', type: a.fraud_type || a.type, severity: a.severity,
-        score: a.score || 0, status: a.status, assignedTo: a.assigned_to,
+        score: a.score ?? ({ critical: 95, high: 80, medium: 55, low: 30 }[a.severity] || 0), status: a.status, assignedTo: a.assigned_to,
         caseId: a.case_id, operatorId: a.operator_id,
         operator: a.operator || a.operator_id || '—',
         rule: a.rule_id || a.reason || '', notes: a.notes || [],
@@ -438,9 +438,10 @@ export function useComplaints(operatorFilter) {
     const { data, error } = await query;
     if (!error && data) {
       setComplaintsState(data.map(c => ({
-        id: c.id, msisdn: c.msisdn_reported,
-        tag: c.ai_tag || c.fraud_type || 'Fraude',
-        summary: c.ai_summary, raw: c.raw_text,
+        id: c.id, msisdn: c.msisdn, msisdn_reported: c.msisdn_reported,
+        tag: c.ai_tag || c.tag || c.fraud_type || 'Fraude', fraud_type: c.fraud_type,
+        summary: c.ai_summary, ai_summary: c.ai_summary, ai_tag: c.ai_tag,
+        raw: c.raw_text || c.raw, auto_blocked: c.auto_blocked, operator_id: c.operator_id,
         date_raw: c.created_at?.slice(0,16).replace('T',' '),
         confidence: c.confidence || 0, status: c.status,
         operatorId: c.operator_id,
@@ -865,7 +866,7 @@ export function useCases(operatorId = null) {
 
   // Realtime
   useEffect(() => {
-    const sub = supabase.channel('cases-realtime')
+    const sub = supabase.channel('cases-realtime-app')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cases' }, fetch)
       .subscribe();
     return () => supabase.removeChannel(sub);

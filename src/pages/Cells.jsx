@@ -207,9 +207,9 @@ function CellDetail({ cell, onBack, setBlacklist, setSimProfile, addLog }) {
             Désélectionner
           </button>
           <div style={{ flex: 1 }} />
-          <Btn variant="warning" small onClick={() => groupAction("monitor")}>WATCH Observer</Btn>
-          <Btn variant="purple" small onClick={() => groupAction("blacklist")}>LOG Blacklister</Btn>
-          <Btn variant="danger" small onClick={() => groupAction("block")}>[X] Bloquer</Btn>
+          <Btn variant="warning" small onClick={() => groupAction("monitor")}>Observer</Btn>
+          <Btn variant="purple" small onClick={() => groupAction("blacklist")}>Blacklister</Btn>
+          <Btn variant="danger" small onClick={() => groupAction("block")}>Bloquer</Btn>
         </div>
       )}
 
@@ -344,7 +344,7 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
         action={
           <button onClick={refetch}
             style={{ background: "none", border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "6px 14px", color: C.muted, cursor: "pointer", fontSize: 12 }}>
-            Sync Actualiser
+            Actualiser
           </button>
         }
       />
@@ -412,7 +412,7 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
 
                   <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
                     <Btn variant="warning" small onClick={() => setSelectedCell(cell)}>
-                      LOG Voir SIMs
+                      Voir les SIM
                     </Btn>
                     <Btn variant="danger" small onClick={() => {
                       setBlacklist(p => [{
@@ -426,7 +426,7 @@ export default function Cells({ blacklist, setBlacklist, setSimProfile, addLog, 
                       addLog?.("BLACKLIST_CELL", "cell", cell.cell_id,
                         `Antenne ${cell.cell_id} blacklistée — Anomalie +${cell.traffic_pct}%`, "Antennes");
                     }}>
-                      [X] Blacklister
+                      Blacklister
                     </Btn>
                   </div>
                 </div>

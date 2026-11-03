@@ -51,6 +51,24 @@ Format de réponse exact :
   }
 }
 
+// ── Analyse de repli (sans serveur IA) : classification par mots-clés ──────
+// Utilisée si le modèle IA local n'est pas joignable, pour que l'analyse
+// fonctionne toujours. Le résultat est présenté comme une analyse automatique.
+function analyzeComplaintLocal(text) {
+  const t = (text || "").toLowerCase();
+  const R = [
+    ["Wangiri",  /appel manqu|rappel|raccroch|1 seconde|débité immédiatement/, "Appel manqué d'un numéro international suivi d'un débit au rappel : schéma Wangiri."],
+    ["ATO",      /échange de sim|swap|piraté|code pin|transferts? non autoris/, "Prise de contrôle probable du compte après un changement de SIM ou une divulgation de code."],
+    ["Phishing", /lien|sms prétendant|données bancaires|cliqué/, "Message frauduleux incitant à cliquer sur un lien ou à communiquer des données."],
+    ["Arnaque",  /marabout|gagné|prix|frais d'envoi|agent de l'opérateur|rituel/, "Escroquerie par ingénierie sociale demandant un envoi d'argent."],
+    ["IRSF",     /abonnement|surtax|appels internationaux que je n'ai pas/, "Facturation de services ou d'appels internationaux non sollicités."],
+    ["Spam",     /dizaines d'appels|harcèlement|même numéro/, "Appels répétés et abusifs depuis un même numéro."],
+  ];
+  const hit = R.find(([, re]) => re.test(t));
+  const [tag, , summary] = hit || ["Fraude", null, "Plainte de fraude à qualifier par un analyste."];
+  return { fraud_type: tag, ai_tag: tag, confidence: hit ? 80 : 40, ai_summary: `${summary} (analyse automatique par mots-clés)` };
+}
+
 // ── Composant carte IA ────────────────────────────────────────────────────
 function AICard({ complaint, onAnalyze, analyzing }) {
   const hasAnalysis = complaint.ai_summary && complaint.ai_summary.length > 10;
@@ -58,7 +76,7 @@ function AICard({ complaint, onAnalyze, analyzing }) {
     <div style={{ background: C.purpleL, border: `1px solid ${C.purple}33`, borderRadius: 10, padding: "14px 18px", marginTop: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ background: C.purple, color: C.white, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700 }}>IA SHIELD</div>
+          <div style={{ background: C.purple, color: C.white, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700 }}>Analyse AAR</div>
           {complaint.ai_tag && <Badge label={complaint.ai_tag} color={C.purple} small />}
           {complaint.confidence > 0 && <span style={{ fontSize: 11, color: C.muted }}>Confiance : {complaint.confidence}%</span>}
         </div>
@@ -93,14 +111,13 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
   async function handleAnalyzeComplaint(c) {
     setAnalyzingId(c.id);
     try {
-      const result = await analyzeComplaintWithOllama(c.raw || c.texte || "", c.msisdn_reported || c.msisdn);
+      const text = c.raw || c.texte || "";
+      const result = (await analyzeComplaintWithOllama(text, c.msisdn_reported || c.msisdn)) || analyzeComplaintLocal(text);
       if (result) {
         // Mettre à jour AAR DB
         await supabase.from("complaints").update({
           fraud_type:  result.fraud_type  || c.fraud_type,
-          confidence:  result.confidence  || c.confidence,
-          ai_summary:  result.ai_summary  || "",
-          ai_tag:      result.ai_tag      || "",
+          tag:         result.ai_tag      || c.tag,
         }).eq("id", c.id);
         // Mettre à jour l'état local
         setComplaints(p => p.map(x => x.id === c.id ? {

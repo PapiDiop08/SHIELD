@@ -109,7 +109,7 @@ function FraudTypeDropdown({ value, onChange, rules }) {
   return (
     <div ref={ref} style={{ position: "relative", marginBottom: 16 }}>
       <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 10, background: value ? fraudCatColor(value) + "18" : C.white, border: `1px solid ${value ? fraudCatColor(value) : C.mutedL}`, borderRadius: 8, padding: "8px 14px", cursor: "pointer", fontSize: 13, fontWeight: value ? 700 : 400, color: value ? fraudCatColor(value) : C.textL }}>
-        <span>Rch {value ? `${fraudCatIcon(value)} ${value}` : `Tous les types${rules ? ` (${rules.length})` : ""}`}</span>
+        <span>{value ? `${fraudCatIcon(value)} ${value}` : `Tous les types${rules ? ` (${rules.length})` : ""}`}</span>
         {value && <span onClick={e => { e.stopPropagation(); onChange(null); }} style={{ marginLeft: 4, color: C.muted, fontSize: 14 }}>×</span>}
         <span style={{ marginLeft: "auto", color: C.muted }}>▾</span>
       </button>
@@ -144,15 +144,15 @@ function FraudTypeDropdown({ value, onChange, rules }) {
 
 function ListDropdown({ value, onChange }) {
   const LISTS = [
-    { key: "blacklist_msisdn", label: "[X] Blacklist — MSISDN" },
+    { key: "blacklist_msisdn", label: "Blacklist : MSISDN" },
     { key: "whitelist_msisdn", label: "OK Whitelist — MSISDN" },
-    { key: "watchlist_msisdn", label: "WATCH Watchlist — MSISDN" },
-    { key: "blacklist_imei", label: "[X] Blacklist — IMEI/Préfixes" },
-    { key: "blacklist_cell", label: "[X] Blacklist — Cell ID" },
-    { key: "blacklist_country", label: "[X] Blacklist — Pays" },
+    { key: "watchlist_msisdn", label: "Watchlist : MSISDN" },
+    { key: "blacklist_imei", label: "Blacklist : IMEI / préfixes" },
+    { key: "blacklist_cell", label: "Blacklist : cellule" },
+    { key: "blacklist_country", label: "Blacklist : pays" },
     { key: "risk_countries", label: "Pays à risque (prédéfini)" },
-    { key: "premium_prefixes", label: "FIN Préfixes surtaxés" },
-    { key: "known_simbox_imei", label: "MOB IMEI SIM Box connus" },
+    { key: "premium_prefixes", label: "Préfixes surtaxés" },
+    { key: "known_simbox_imei", label: "IMEI de SIM Box connus" },
   ];
   return (
     <select value={value || ""} onChange={e => onChange(e.target.value)}
@@ -249,7 +249,7 @@ function RuleForm({ initial, onSave, onCancel, cases, udfFields }) {
                 : <input value={cond.value} onChange={e => updCond(i, "value", e.target.value)} placeholder="Valeur..."
                     style={{ flex: 1, border: `1px solid ${C.mutedL}`, borderRadius: 8, padding: "8px 10px", fontSize: 12, color: C.navy, outline: "none" }} />
               }
-              <button onClick={() => delCond(i)} style={{ background: C.dangerL, border: "none", color: C.danger, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 14 }}>Del</button>
+              <button onClick={() => delCond(i)} style={{ background: C.dangerL, border: "none", color: C.danger, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontSize: 14 }}>×</button>
             </div>
             {cond.field && (
               <div style={{ marginTop: 6, fontSize: 10, color: C.muted }}>
@@ -373,8 +373,8 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
         <Btn variant="ghost" onClick={() => setEditRule(null)}>← Retour</Btn>
         <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900, color: C.navy, flex: 1 }}>Modifier — {editRule.name}</h1>
         <div style={{ display: "flex", gap: 12, fontSize: 13, color: C.textL }}>
-          <span>[*] {editRule.triggered} déclenchements</span>
-          <span>[X] {editRule.blocked} bloqués</span>
+          <span>{editRule.triggered} déclenchements</span>
+          <span>{editRule.blocked} bloqués</span>
         </div>
       </div>
       <Card style={{ padding: "24px" }}>
@@ -394,10 +394,10 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
 
       <div style={{ display: "flex", gap: 14, marginBottom: 20 }}>
         {[
-          ["Règles totales", rules.length, C.navy],
-          ["Actives", (rules||[]).filter(r => r.active).length, C.success],
-          ["Déclenchements", totalTriggered.toLocaleString(), C.sky],
-          ["Bloqués", totalBlocked.toLocaleString(), C.danger],
+          [rules.length, "Règles totales", C.navy],
+          [(rules||[]).filter(r => r.active).length, "Actives", C.success],
+          [totalTriggered.toLocaleString("fr-FR"), "Déclenchements", C.sky],
+          [totalBlocked.toLocaleString("fr-FR"), "Bloqués", C.danger],
           [`${Math.round(totalBlocked / Math.max(totalTriggered, 1) * 100)}%`, "Taux blocage", C.warning],
         ].map(([v, l, c], i) => (
           <Card key={i} style={{ flex: 1, padding: "14px 18px" }}>
@@ -543,8 +543,8 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
                   <span style={{ fontWeight: 700, fontSize: 14, color: C.navy }}>{rule.name}</span>
                   <Badge label={sevLabel(rule.severity)} color={sc} small />
                   <Badge label={rule.type} color={fc} small />
-                  <Badge label={ACTION_LABELS[rule.action]?.replace(/^[^ ]+ /, "") || rule.action} color={rule.action.includes("block") ? C.danger : C.warning} small />
-                  {linkedCase && <Badge label={`Doc ${linkedCase.name.slice(0, 20)}`} color={C.purple} small />}
+                  <Badge label={ACTION_LABELS[rule.action]?.replace(/^[^ ]+ /, "") || rule.action} color={(rule.action||"").includes("block") ? C.danger : C.warning} small />
+                  {linkedCase && <Badge label={`Dossier ${(linkedCase.name||"").slice(0, 20)}`} color={C.purple} small />}
                 </div>
                 <div style={{ fontSize: 11, color: C.textL }}>{rule.conditions?.length || 0} conditions · {rule.date}</div>
               </div>
@@ -566,7 +566,7 @@ export default function Rules({ rules, setRules, cases, addLog, createRule, upda
         })}
         {filtered.length === 0 && (
           <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>CFG</div>
+            
             <p style={{ margin: 0 }}>Aucune règle ne correspond</p>
           </Card>
         )}

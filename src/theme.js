@@ -92,8 +92,8 @@ export const fraudCatName = (type) => {
 
 export const sevColor = s => ({ critical: C.danger, high: C.warning, medium: C.sky, low: C.success }[s] || C.muted);
 export const sevLabel = s => ({ critical: "Critique", high: "Élevé", medium: "Moyen", low: "Faible" }[s] || s);
-export const statusColor = s => ({ blocked: C.danger, alert: C.warning, monitor: C.sky, cleared: C.success, investigating: C.purple, escalated: C.warning, false_positive: C.success, closed: C.muted }[s] || C.muted);
-export const statusLabel = s => ({ blocked: "BLOQUÉ", alert: "ALERTE", monitor: "SURVEILLANCE", cleared: "RÉSOLU", investigating: "EN COURS", escalated: "ESCALADÉ", false_positive: "FAUX POSITIF", closed: "CLÔTURÉ" }[s] || s);
+export const statusColor = s => ({ open: C.warning, blocked: C.danger, alert: C.warning, monitor: C.sky, cleared: C.success, investigating: C.purple, escalated: C.warning, false_positive: C.success, closed: C.muted }[s] || C.muted);
+export const statusLabel = s => ({ open: "OUVERTE", blocked: "BLOQUÉ", alert: "ALERTE", monitor: "SURVEILLANCE", cleared: "RÉSOLU", investigating: "EN COURS", escalated: "ESCALADÉ", false_positive: "FAUX POSITIF", closed: "CLÔTURÉ" }[s] || s);
 
 export const ROLES = {
   superadmin: { label: "Super Admin", color: C.red, icon: "", org: "AAR" },

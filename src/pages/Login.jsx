@@ -38,8 +38,6 @@ export default function Login() {
     if (loading) return;
     setLoading(true);
     setError("");
-    setEmail(acc.email);
-    setPassword(acc.password);
     const result = await login(acc.email, acc.password);
     if (!result.success) { setError(result.error || "Compte démo indisponible"); setLoading(false); }
   }

@@ -121,7 +121,7 @@ function SimsTab({ dist, setSimProfile }) {
       </div>
 
       {sims.length === 0 ? (
-        <EmptyState label="Aucune SIM liée à ce distributeur dans sim_profiles" />
+        <EmptyState text="Aucune SIM liée à ce distributeur" />
       ) : (
         <>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>

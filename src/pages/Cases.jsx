@@ -161,9 +161,9 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
   return (
     <div style={{ padding: "28px 30px", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       <SectionHeader
-        title="Case Management"
+        title="Dossiers d'enquête"
         sub={loading
-          ? "Chargement chargement…"
+          ? "Chargement…"
           : `${(cases||[]).filter(c => c.status !== "closed").length} cases actifs · ${cases.length} total `
         }
         action={can("createCases") && (
@@ -217,7 +217,7 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
       {loading && (
         <Card style={{ padding: "40px", textAlign: "center", color: C.muted }}>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>Chargement…</div>
-          <p style={{ margin: 0 }}>Chargement des cases chargement…</p>
+          <p style={{ margin: 0 }}>Chargement des dossiers…</p>
         </Card>
       )}
 
@@ -254,7 +254,7 @@ export default function Cases({ alerts, users, setSimProfile, addLog, navigate, 
                         </p>
                         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                           <span style={{ fontSize: 11, color: C.muted }}>Date {c.createdAt}</span>
-                          <span style={{ fontSize: 11, color: C.sky, fontWeight: 600 }}>[ {c.alertCount} alertes</span>
+                          <span style={{ fontSize: 11, color: C.sky, fontWeight: 600 }}>{c.alertCount} alertes</span>
                           <span style={{ fontSize: 11, color: C.muted }}>⏱ SLA {c.slaHours}h</span>
                           {c.operator && <span style={{ fontSize: 11, color: C.muted }}>Opérateur: {c.operator}</span>}
                           {(c.tags || []).map(t => (

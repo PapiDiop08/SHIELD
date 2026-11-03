@@ -80,7 +80,7 @@ export default function Whitelist({ blacklist, setBlacklist, setSimProfile, user
 
       <SectionHeader title="Whitelist" sub="Numéros, IMEI et Cell IDs exemptés de détection"
         action={<>
-          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>Export Import</Btn>
+          <Btn variant="secondary" small onClick={()=>{setShowImport(true);setImportStep(1);}}>Importer</Btn>
           <Btn onClick={()=>setShowAdd(true)}>+ Ajouter</Btn>
         </>} />
 

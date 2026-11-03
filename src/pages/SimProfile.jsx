@@ -266,7 +266,6 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
   async function addToList(list, entity, value) {
     if (!window.confirm(`Ajouter ${value} en ${list} ?`)) return;
     const opId = effectiveAlerts[0]?.operator_id || null;
-    await supabase.from("control_lists").insert([{ list: list, type: entity, value, reason: "SimProfile", active: true }]);
     addEntry?.({ list, type: entity, value, reason: "SimProfile" }, opId);
     addLog?.(`${list.toUpperCase()}_${entity.toUpperCase()}`, "control_list", value, `Ajout ${entity} → ${list}`, "SimProfile");
     alert(`✓ ${value} ajouté en ${list}`);
@@ -287,7 +286,7 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
           )}
           <form onSubmit={handleSearch} style={{ display:"flex",gap:8,flex:1 }}>
             <input value={inputMsisdn} onChange={e=>setInputMsisdn(e.target.value)}
-              placeholder="MSISDN (ex: 226695924544)"
+              placeholder="MSISDN (ex : 221771234567)"
               style={{ flex:1,maxWidth:280,border:"1px solid #2A3F6A",borderRadius:7,padding:"7px 12px",fontSize:13,color:C.white,background:"#0a1530",outline:"none",fontFamily:"monospace" }} />
             <button type="submit" disabled={loading}
               style={{ background:C.orange,border:"none",color:C.white,borderRadius:7,padding:"7px 16px",fontSize:12,fontWeight:700,cursor:"pointer" }}>

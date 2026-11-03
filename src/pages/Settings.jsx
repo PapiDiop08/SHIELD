@@ -70,7 +70,7 @@ export default function Settings({ operators, setOperators, addLog }) {
 
               {op.slaEnabled && op.slaConfig && (
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
-                  {[["Critique R","critical",C.danger],["Élevé O","high",C.warning],["Moyen B","medium",C.sky]].map(([label,key,color])=>(
+                  {[["Critique","critical",C.danger],["Élevé","high",C.warning],["Moyen","medium",C.sky]].map(([label,key,color])=>(
                     <div key={key} style={{background:C.bg,borderRadius:10,padding:"14px 16px",border:`1px solid ${color}22`}}>
                       <label style={{display:"block",fontSize:11,fontWeight:700,color,textTransform:"uppercase",marginBottom:10}}>{label}</label>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -89,7 +89,7 @@ export default function Settings({ operators, setOperators, addLog }) {
 
           {can("manageSettings") && (
             <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
-              <Btn onClick={saveSLA}>Save Sauvegarder les SLA</Btn>
+              <Btn onClick={saveSLA}>Sauvegarder les SLA</Btn>
             </div>
           )}
         </div>
@@ -100,14 +100,14 @@ export default function Settings({ operators, setOperators, addLog }) {
         <Card style={{padding:"24px"}}>
           <div style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:16}}>Informations de la plateforme</div>
           {[
-            ["Nom de la plateforme","SHIELD Fraud Detection"],
+            ["Nom de la plateforme","AAR Telco"],
             ["Version","v5.0.0"],
             ["Organisation","Global Fraud Management"],
             ["Environnement","Production"],
             ["Fuseau horaire","Africa/Dakar (UTC+0)"],
-            ["Base de données","Snowflake (en attente d'intégration)"],
-            ["Ingestion CDR","AWS S3 + Lambda (en attente)"],
-            ["API Backend","FastAPI sur EC2 (en attente)"],
+            ["Base de données","PostgreSQL (multi-opérateur, RLS)"],
+            ["Ingestion CDR","API webhook, SFTP, polling, fichiers"],
+            ["Déploiement","On-premise ou SaaS"],
           ].map(([k,v])=>(
             <div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:`1px solid ${C.mutedL}`}}>
               <span style={{fontSize:13,color:C.textL}}>{k}</span>
@@ -124,9 +124,9 @@ export default function Settings({ operators, setOperators, addLog }) {
               &nbsp;&nbsp;↓ Lambda / Glue (ETL)<br/>
               Snowflake (Data Warehouse)<br/>
               &nbsp;&nbsp;↓ Vues agrégées MSISDN/IMEI/Cell<br/>
-              FastAPI (EC2 — Backend SHIELD)<br/>
+              Moteur AAR Telco (règles temps réel)<br/>
               &nbsp;&nbsp;↓ REST API<br/>
-              SHIELD Frontend (Vercel / EC2)
+              Console AAR Telco (web)
             </div>
           </div>
         </Card>
