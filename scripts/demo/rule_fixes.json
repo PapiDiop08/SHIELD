@@ -1,0 +1,210 @@
+{
+ "t03": [
+  {
+   "type": "cdr",
+   "field": "call_out_ratio",
+   "comparator": ">",
+   "value": "20"
+  },
+  {
+   "type": "cdr",
+   "field": "unique_cells",
+   "logic": "ET",
+   "comparator": "=",
+   "value": "1"
+  }
+ ],
+ "t07": [
+  {
+   "type": "cdr",
+   "field": "intl_ratio",
+   "comparator": ">",
+   "value": "0.90"
+  },
+  {
+   "type": "cdr",
+   "field": "unique_cells",
+   "logic": "ET",
+   "comparator": "=",
+   "value": "1"
+  },
+  {
+   "type": "cdr",
+   "field": "call_out_count",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "50"
+  }
+ ],
+ "t18": [
+  {
+   "type": "cdr",
+   "field": "distinct_b_24h",
+   "comparator": ">",
+   "value": "100"
+  },
+  {
+   "type": "cdr",
+   "field": "short_call_ratio",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "0.50"
+  }
+ ],
+ "t21": [
+  {
+   "type": "cdr",
+   "field": "intl_calls_ratio",
+   "comparator": ">",
+   "value": "0.80"
+  },
+  {
+   "type": "cdr",
+   "field": "avg_intl_duration_sec",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "60"
+  },
+  {
+   "type": "cdr",
+   "field": "call_out_count",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "30"
+  }
+ ],
+ "t24": [
+  {
+   "type": "cdr",
+   "field": "premium_calls",
+   "comparator": ">",
+   "value": "10"
+  },
+  {
+   "type": "cdr",
+   "field": "intl_calls",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "10"
+  },
+  {
+   "type": "cdr",
+   "field": "avg_duration_sec",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "120"
+  }
+ ],
+ "t25": [
+  {
+   "type": "cdr",
+   "field": "premium_calls",
+   "comparator": ">",
+   "value": "20"
+  },
+  {
+   "type": "cdr",
+   "field": "intl_ratio",
+   "logic": "ET",
+   "comparator": "<",
+   "value": "0.50"
+  }
+ ],
+ "T_CELL_CONC_01": [
+  {
+   "type": "cdr",
+   "field": "cell_call_max_1h",
+   "comparator": ">",
+   "value": "5"
+  }
+ ],
+ "T_CELL_CONC_02": [
+  {
+   "type": "cdr",
+   "field": "cell_call_max_1h",
+   "comparator": ">",
+   "value": "5"
+  },
+  {
+   "type": "cdr",
+   "field": "avg_duration_sec",
+   "logic": "ET",
+   "comparator": "<",
+   "value": "40"
+  },
+  {
+   "type": "cdr",
+   "field": "unique_cells",
+   "logic": "ET",
+   "comparator": "=",
+   "value": "1"
+  }
+ ],
+ "t14": [
+  {
+   "type": "cdr",
+   "field": "premium_calls",
+   "comparator": ">",
+   "value": "30"
+  },
+  {
+   "type": "cdr",
+   "field": "is_international",
+   "logic": "ET",
+   "comparator": "=",
+   "value": "true"
+  },
+  {
+   "type": "cdr",
+   "field": "short_call_ratio",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "0.50"
+  }
+ ],
+ "t47": [
+  {
+   "type": "cdr",
+   "field": "pbx_premium_calls",
+   "comparator": ">",
+   "value": "50"
+  },
+  {
+   "type": "cdr",
+   "field": "avg_duration_sec",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "120"
+  }
+ ],
+ "t23": [
+  {
+   "type": "cdr",
+   "field": "avg_intl_duration_sec",
+   "comparator": ">",
+   "value": "300"
+  },
+  {
+   "type": "cdr",
+   "field": "intl_calls",
+   "logic": "ET",
+   "comparator": ">",
+   "value": "10"
+  }
+ ],
+ "t12": [
+  {
+   "type": "velocity",
+   "field": "call_out_2h",
+   "comparator": ">",
+   "value": "300"
+  },
+  {
+   "type": "cdr",
+   "field": "unique_cells",
+   "logic": "ET",
+   "comparator": "=",
+   "value": "1"
+  }
+ ]
+}
