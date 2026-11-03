@@ -166,10 +166,17 @@ function seed(state, profile, events) {
 }
 
 export function prewarmStates(stateMap, MsisdnStateClass) {
+  for (const p of [...FRAUD_LINES, ...LEGIT_POOL]) {
+    stateMap[p.msisdn] = new MsisdnStateClass(p.msisdn);
+    prewarmProfile(stateMap[p.msisdn], p);
+  }
+}
+
+// Historique 24 h d'une ligne donnée (utilisé aussi pour générer des jeux de démo datés)
+export function prewarmProfile(st, p) {
   const now = Date.now();
   const ev = (kind, ts, extra) => ({ kind, ts, extra });
-  for (const p of [...FRAUD_LINES, ...LEGIT_POOL]) {
-    const st = (stateMap[p.msisdn] = new MsisdnStateClass(p.msisdn));
+  {
     const events = [];
     switch (p.type) {
       case 'simbox':

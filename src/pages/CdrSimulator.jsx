@@ -154,6 +154,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator, re
   const statsRef = useRef({ total:0, legit:0, alerts:0, blocked:0, simbox:0, wangiri:0, irsf:0, ato:0, fraudN:0, fraudHit:0, falsePos:0 });
   const activeRulesRef = useRef([]);
   const ruleHitsRef = useRef({}); // { ruleId: { triggered, blocked, base } }
+  const alertedRef = useRef(new Map()); // une alerte (et un blocage) par MSISDN, comme en production
 
   useEffect(() => {
     activeRulesRef.current = (rules||[]).filter(r => r.active && r.scope==='telco');
@@ -169,7 +170,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator, re
     const result = processCDR(cdr, state, activeRulesRef.current);
     const triggered  = result.triggered;
     const topRule    = triggered.find(r => r.action==='block') || triggered[0];
-    const status     = topRule?.action==='block' ? 'FRAUD' : triggered.length>0 ? 'ALERT' : 'OK';
+    const status     = topRule?.action==='block' && profile.type!=='ato' ? 'FRAUD' : triggered.length>0 ? 'ALERT' : 'OK';
 
     // Écrire CDR en DB (operator_id obligatoire pour que la RLS laisse passer le SELECT dans SimProfile)
     supabase.from('cdr_voice').insert({
@@ -184,46 +185,53 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator, re
       if (cdrErr) console.error('CDR insert error:', cdrErr.message, cdrErr.code);
     });
 
-    // Créer alerte avec fraud_type basé sur le profil (pas juste la règle)
-    if (topRule) {
+    // Une alerte par MSISDN (comme en production) ; elle passe en "bloqué" si une règle de blocage se déclenche ensuite
+    const prev = alertedRef.current.get(cdr.msisdn_a);
+    // ATO : la ligne appartient à la victime ; on escalade pour protéger le compte au lieu de couper le numéro
+    const victim = profile.type === 'ato';
+    const isBlock = topRule?.action === 'block' && !victim;
+    const nowIso = new Date().toISOString();
+    const writeBlocking = () => supabase.from('blockings').insert({
+      id: crypto.randomUUID(),
+      msisdn: cdr.msisdn_a,
+      reason: FRAUD_REASONS[profile.type] || `Règle "${topRule.name}"`,
+      source: 'shield_auto',
+      active: true,
+      operator: currentOperator?.name || 'AAR Telco',
+      operator_id: currentOperator?.id || null,
+      auto_flagged: triggered.map(r => r.name),
+      created_at: nowIso,
+    }).then(({ error: bErr }) => {
+      if (bErr && !bErr.message?.includes('unique')) console.error('Blocking insert error:', bErr);
+    });
+    if (topRule && !prev) {
       const fraudType = FRAUD_TYPE_MAP[profile.type] || topRule.name;
       const alertRow = {
         id: crypto.randomUUID(),
         msisdn: cdr.msisdn_a,
+        imei: cdr.imei || null,
+        imsi: cdr.imsi || null,
         type: profile.type || fraudType,
         fraud_type: fraudType,
-        status: topRule.action==='block' ? 'blocked' : 'open',
-        score: Math.min(100, 60 + triggered.length * 15),
+        status: isBlock ? 'blocked' : victim ? 'escalated' : 'open',
+        score: Math.min(100, 60 + triggered.length * 5),
         severity: profile.type === 'irsf' ? 'critical' : topRule.severity || 'high',
         reason: `${FRAUD_REASONS[profile.type] || "Comportement atypique"}. Règles : ${triggered.map(r => r.name).join(" ; ")}`.slice(0, 900),
-        date: new Date().toISOString().slice(0, 10),
+        date: nowIso.slice(0, 10),
         operator: currentOperator?.name || 'AAR Telco',
         operator_id: currentOperator?.id || null,
-        created_at: new Date().toISOString(),
+        created_at: nowIso,
         scope: 'telco',
       };
-      supabase.from('alerts').insert(alertRow).select().then(({ data, error }) => {
+      alertedRef.current.set(cdr.msisdn_a, { id: alertRow.id, blocked: isBlock });
+      supabase.from('alerts').insert(alertRow).then(({ error }) => {
         if (error) console.error('Alert insert error:', error);
-        // Subscription Realtime gère l'affichage — pas d'appel addAlert direct
       });
-
-      // ── Auto-blocage : dès que la règle dit "block" → écriture dans blockings
-      if (topRule.action === 'block') {
-        const blockRow = {
-          id: crypto.randomUUID(),
-          msisdn: cdr.msisdn_a,
-          reason: FRAUD_REASONS[profile.type] || `Règle "${topRule.name}" — score élevé`,
-          source: 'shield_auto',
-          active: true,
-          operator: currentOperator?.name || 'AAR Telco',
-          operator_id: currentOperator?.id || null,
-          auto_flagged: triggered.map(r => r.name),
-          created_at: new Date().toISOString(),
-        };
-        supabase.from('blockings').insert(blockRow).then(({ error: bErr }) => {
-          if (bErr && !bErr.message?.includes('unique')) console.error('Blocking insert error:', bErr);
-        });
-      }
+      if (isBlock) writeBlocking();
+    } else if (topRule && prev && !prev.blocked && isBlock) {
+      prev.blocked = true;
+      supabase.from('alerts').update({ status: 'blocked', updated_at: nowIso }).eq('id', prev.id).then(() => {});
+      writeBlocking();
     }
 
     // Accumuler les hits par règle (flush périodique vers DB)
@@ -301,6 +309,7 @@ export default function CdrSimulator({ rules = [], addAlert, currentOperator, re
     feedRef.current  = [];
     statsRef.current = { total:0, legit:0, alerts:0, blocked:0, simbox:0, wangiri:0, irsf:0, ato:0, fraudN:0, fraudHit:0, falsePos:0 };
     ruleHitsRef.current = {};
+    alertedRef.current = new Map();
     setFeed([]);
     setStats({ ...statsRef.current });
     setBatchProgress(0);
