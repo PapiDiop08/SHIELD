@@ -344,10 +344,6 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
                     </div>
                     <div style={{ fontSize: 11, color: C.muted }}>{c.date_raw}</div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 14, fontWeight: 900, color: c.confidence >= 90 ? C.danger : C.warning }}>{c.confidence}%</div>
-                    <div style={{ fontSize: 9, color: C.muted }}>IA</div>
-                  </div>
                 </div>
               ))}
             </Card>
@@ -391,16 +387,11 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
                       </Btn>
                     </div>
 
-                    {c.raw && (
-                      <div style={{ background: C.bg, borderRadius: 8, padding: "14px 16px", marginBottom: 12 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, textTransform: "uppercase" }}>Texte original</div>
-                        <p style={{ margin: 0, fontSize: 13, color: C.navy, lineHeight: 1.7, fontStyle: "italic" }}>"{c.raw}"</p>
-                      </div>
-                    )}
-
-                    <AICard complaint={c}
-                onAnalyze={() => handleAnalyzeComplaint(c)}
-                analyzing={analyzingId === c?.id} />
+                    <div style={{ background: C.bg, borderRadius: 8, padding: "14px 16px", marginTop: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, textTransform: "uppercase" }}>Texte de la plainte</div>
+                      <p style={{ margin: 0, fontSize: 13, color: C.navy, lineHeight: 1.7, fontStyle: c.raw ? "italic" : "normal" }}>{c.raw ? `"${c.raw}"` : "Texte non renseigné"}</p>
+                      {c.msisdn_reported && <div style={{ marginTop: 10, fontSize: 12, color: C.textL }}>Numéro signalé : <b style={{ fontFamily: "monospace", color: C.navy }}>{c.msisdn_reported}</b></div>}
+                    </div>
                   </Card>
 
                   <Card style={{ padding: "16px 20px" }}>
@@ -447,7 +438,7 @@ export default function Complaints({ complaints, setComplaints, setBlacklist, se
                         await supabase.from("complaints").update({ status: "resolved" }).eq("id", c.id);
                         setComplaints(p => p.map(x => x.id === c.id ? {...x, status: "resolved"} : x));
                         addLog?.("WHITELIST_ADD", "complaint", c.id, `Faux positif ${msisdn}`, "Plaintes");
-                      }}>OK Faux positif</Btn>
+                      }}>Faux positif</Btn>
                     </div>
                     )}
                   </Card>

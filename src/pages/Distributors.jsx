@@ -106,6 +106,7 @@ function SimsTab({ dist, setSimProfile }) {
         </div>
       )}
 
+      <div style={{ position: "sticky", top: -20, zIndex: 2, background: C.white, margin: "-20px 0 0", padding: "20px 0 4px" }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
         {[
           { label: "Total", value: stats.total, color: C.navy },
@@ -120,10 +121,7 @@ function SimsTab({ dist, setSimProfile }) {
         ))}
       </div>
 
-      {sims.length === 0 ? (
-        <EmptyState text="Aucune SIM liée à ce distributeur" />
-      ) : (
-        <>
+        {sims.length > 0 && (<>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <button
               onClick={blockAll}
@@ -146,6 +144,13 @@ function SimsTab({ dist, setSimProfile }) {
             style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.mutedL}`, fontSize: 12, color: C.text, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
           />
 
+        </>)}
+      </div>
+
+      {sims.length === 0 ? (
+        <EmptyState text="Aucune SIM liée à ce distributeur" />
+      ) : (
+        <>
           <div style={{ border: `1px solid ${C.mutedL}`, borderRadius: 10, overflow: "hidden" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.7fr 0.6fr 0.8fr 0.8fr", gap: 0, padding: "8px 10px", background: C.bg, fontSize: 9, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>
               <div>MSISDN</div>
@@ -219,9 +224,9 @@ function DistributorPanel({ dist, onClose, onFlag, setSimProfile }) {
   ];
 
   return (
-    <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 520, background: C.white, boxShadow: "-8px 0 32px rgba(0,0,0,0.15)", zIndex: 1000, overflowY: "auto", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
+    <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 520, background: C.white, boxShadow: "-8px 0 32px rgba(0,0,0,0.15)", zIndex: 1000, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
       {/* Header */}
-      <div style={{ background: C.navy, padding: "24px 24px 0", color: C.white }}>
+      <div style={{ background: C.navy, padding: "24px 24px 0", color: C.white, flexShrink: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>Profil distributeur</div>
@@ -258,7 +263,7 @@ function DistributorPanel({ dist, onClose, onFlag, setSimProfile }) {
         </div>
       </div>
 
-      <div style={{ padding: "20px 24px" }}>
+      <div style={{ padding: "20px 24px", flex: 1, overflowY: "auto" }}>
         {activeTab === "apercu" && (
           <>
             {/* KPIs */}

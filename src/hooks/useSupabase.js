@@ -771,7 +771,7 @@ export function useSimProfilesSearch({ search = "", status = "all", operatorId =
     setLoading(true);
     setError(null);
     try {
-      let q = supabase.from('sim_profiles').select('*', { count: 'exact' });
+      let q = supabase.from('sim_profiles').select('*', { count: 'estimated' }); // 'exact' dépasse le délai avec la RLS sur 55 000 SIM
       if (search) {
         const s = search.replace(/\s/g, '');
         q = q.or(`msisdn.ilike.%${s}%,id.ilike.%${search}%,imsi.ilike.%${search}%,imei.ilike.%${search}%`);
