@@ -31,7 +31,7 @@ const digits = (n) => Array.from({ length: n }, () => rnd(0, 9)).join('')
 const realNow = Date.now(); const origNow = Date.now.bind(Date)
 const alerts = [], blockings = [], cdrs = []
 const DAY = 86400000
-for (let d = 6; d >= 0; d--) {
+for (let d = Number(process.argv[4] ?? 6); d >= 0; d--) {
   for (const fam of gen.FRAUD_PROFILES) {
     const n = fam.type === 'simbox' ? rnd(1, 3) : rnd(0, 2)
     for (let k = 0; k < n; k++) {
