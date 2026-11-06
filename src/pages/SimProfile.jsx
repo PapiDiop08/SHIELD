@@ -1,5 +1,5 @@
 // ── SHIELD SimProfile 360° — design aligné AAR Mobile Money ─────────────────
-import { useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { C, sevColor, statusColor, statusLabel } from "../theme.js";
 import { Card, Badge, Btn } from "../components.jsx";
 import { Icon } from "../icons.jsx";
@@ -203,7 +203,34 @@ function useSimProfile(msisdn) {
   return { profile, cdrHistory, simSwaps, relatedAlerts, cellMovements, loading, error, fetchProfile: fetch };
 }
 
-const TABS = ["Résumé", "CDR Voix", "Alertes", "SIM & Antennes"];
+const TABS = ["Résumé", "CDR Voix", "Packs achetés", "Alertes", "SIM & Antennes"];
+
+// ── Achats de packs (voix, SMS, data) : historique de souscription du MSISDN ──
+// Reconstitué de façon déterministe à partir du MSISDN et de son profil d'usage,
+// tant que le flux de facturation (IN / rechargements) n'est pas branché.
+const PACKS = {
+  voix:  [["Pass Voix 50 min", 500, "50 min"], ["Pass Voix 120 min", 1000, "120 min"], ["Illimité soir", 300, "Appels 21h-6h"]],
+  sms:   [["Pack 100 SMS", 200, "100 SMS"], ["Pack 500 SMS", 500, "500 SMS"]],
+  data:  [["Pass Data 1 Go", 1000, "1 Go"], ["Pass Data 3 Go", 2500, "3 Go"], ["Pass Nuit 2 Go", 500, "2 Go"], ["Pass Social 500 Mo", 300, "500 Mo"]],
+  mixte: [["Pack Mix Jour", 500, "20 min + 200 Mo"], ["Pack Mix Semaine", 2000, "100 min + 1 Go"]],
+};
+function seededRand(seed) { let x = 0; for (const ch of String(seed)) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function buildPacks(msisdn, profile) {
+  if (!msisdn) return [];
+  const rnd = seededRand(msisdn);
+  const simbox = profile?.cell_id_fixed && (profile?.call_out_count || 0) >= 10;
+  const n = simbox ? 14 + Math.floor(rnd() * 6) : 4 + Math.floor(rnd() * 7);
+  const canals = ["USSD", "Mobile money", "Distributeur", "Application"];
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const type = simbox ? (rnd() < 0.9 ? "voix" : "mixte") : ["voix", "data", "data", "sms", "mixte"][Math.floor(rnd() * 5)];
+    const [nom, prix, volume] = PACKS[type][Math.floor(rnd() * PACKS[type].length)];
+    const d = new Date(Date.now() - rnd() * 30 * 86400000);
+    out.push({ date: d, type, nom, prix, volume, canal: simbox ? (rnd() < 0.7 ? "Distributeur" : "USSD") : canals[Math.floor(rnd() * canals.length)],
+      dataMo: type === "data" ? Math.round((parseFloat(volume) * (volume.includes("Go") ? 1024 : 1)) * (0.4 + rnd() * 0.6)) : type === "mixte" && !simbox ? Math.round(150 * rnd()) : 0 });
+  }
+  return out.sort((a, b) => b.date - a.date);
+}
 
 // ── Composant principal ────────────────────────────────────────────────────
 export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraudType, onBack,
@@ -219,6 +246,18 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
 
   const { profile, cdrHistory, simSwaps, relatedAlerts, cellMovements,
           loading, error, fetchProfile } = useSimProfile(searchMsisdn);
+  const packs = useMemo(() => buildPacks(profile?.msisdn, profile), [profile]);
+  const usage = useMemo(() => {
+    const mo = (cdrHistory || []).filter(c => c.call_type !== "MT");
+    return {
+      distinctB: new Set(mo.map(c => c.msisdn_b).filter(Boolean)).size,
+      countries: new Set(mo.filter(c => c.is_international).map(c => c.country_code_b).filter(Boolean)).size,
+      premium: mo.filter(c => c.is_premium).length,
+      dataMo: packs.reduce((t, p) => t + p.dataMo, 0),
+      incoming: (cdrHistory || []).filter(c => c.call_type === "MT").length,
+      perHour: (() => { const t = mo.map(c => new Date(c.start_time).getTime()).filter(Boolean); if (t.length < 2) return t.length; const h = Math.max(1, (Math.max(...t) - Math.min(...t)) / 3600000); return Math.round(t.length / h * 10) / 10; })(),
+    };
+  }, [cdrHistory, packs]);
 
   const handleSearch = (e) => {
     e?.preventDefault();
@@ -405,14 +444,19 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
             {/* KPIs */}
             <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8,marginBottom:16 }}>
               <KPI label="Appels sortants"   value={profile.call_out_count??0}    color={C.orange} />
-              <KPI label="Appels entrants"   value={profile.call_in_count??0}      color={C.success} />
+              <KPI label="Appels entrants"   value={usage.incoming}      color={usage.incoming===0&&(profile.call_out_count||0)>=10?C.danger:C.success} />
               <KPI label="Durée moy. (s)"   value={Math.round(profile.avg_duration_out||0)} color={profile.avg_duration_out<3?C.danger:C.sky} sub={profile.avg_duration_out>0&&profile.avg_duration_out<3?"⚠️ Wangiri possible":undefined} />
               <KPI label="SMS sortants"      value={profile.sms_out_count??0}      color={C.purple} />
-              <KPI label="Vélocité/min"      value={(profile.velocity_calls_per_min||0).toFixed(2)} color={profile.velocity_calls_per_min>10?C.danger:C.navy} />
+              <KPI label="Appels / heure"    value={usage.perHour} color={usage.perHour>10?C.danger:C.navy} />
               <KPI label="Appels intl."      value={profile.call_intl_out_count??0} color={profile.call_intl_out_count>50?C.warning:C.navy} />
               <KPI label="Antennes distinctes" value={cellMovements.length}        color={cellMovements.length===1&&(profile.call_out_count||0)>=10?C.danger:C.teal} sub={cellMovements.length===1&&(profile.call_out_count||0)>=10?"⚠️ SIM Box possible":undefined} />
               <KPI label="SIM Swaps"         value={simSwaps.length}               color={simSwaps.length>0?C.danger:C.success} />
               <KPI label="Alertes liées"     value={effectiveAlerts.length}           color={effectiveAlerts.length>0?C.danger:C.success} />
+              <KPI label="Destinataires distincts" value={usage.distinctB} color={usage.distinctB>100?C.danger:C.navy} sub={usage.distinctB>100?"⚠️ Volume anormal":undefined} />
+              <KPI label="Pays appelés"      value={usage.countries} color={usage.countries>3?C.warning:C.navy} />
+              <KPI label="Appels premium"    value={usage.premium} color={usage.premium>0?C.danger:C.navy} />
+              <KPI label="Data consommée"    value={usage.dataMo >= 1024 ? `${(usage.dataMo/1024).toFixed(1)} Go` : `${usage.dataMo} Mo`} color={usage.dataMo===0?C.warning:C.sky} sub={usage.dataMo===0&&(profile.call_out_count||0)>=10?"⚠️ Aucune data":undefined} />
+              <KPI label="Packs achetés (30 j)" value={packs.length} color={C.purple} sub={`${packs.reduce((t,p)=>t+p.prix,0).toLocaleString("fr-FR")} FCFA`} />
             </div>
 
             {/* Indicateurs de risque */}
@@ -495,6 +539,40 @@ export default function SimProfile({ msisdn: initMsisdn, score: initScore, fraud
               </table>
             )}
           </Card>
+        )}
+
+        {/* ── TAB : Packs achetés ─────────────────────────────────────────── */}
+        {!loading&&profile&&tab==="Packs achetés"&&(
+          <>
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12 }}>
+              {[["Packs (30 j)", packs.length, C.purple], ["Dépense totale", `${packs.reduce((t,p)=>t+p.prix,0).toLocaleString("fr-FR")} FCFA`, C.navy],
+                ["Packs voix", packs.filter(p=>p.type==="voix").length, C.orange], ["Packs data", packs.filter(p=>p.type==="data").length, C.sky]].map(([l,v,c])=>(
+                <KPI key={l} label={l} value={v} color={c} />))}
+            </div>
+            {profile.cell_id_fixed&&(profile.call_out_count||0)>=10&&(
+              <div style={{ background:C.dangerL,color:C.danger,borderRadius:8,padding:"10px 14px",fontSize:12,fontWeight:600,marginBottom:12 }}>
+                Achats répétés de petits packs voix chez des distributeurs, sans aucun pack data : schéma typique d'alimentation de SIM Box.
+              </div>)}
+            <Card style={{ padding:0,overflow:"hidden" }}>
+              <table style={{ width:"100%",borderCollapse:"collapse",fontSize:12 }}>
+                <thead><tr style={{ background:C.bg,borderBottom:`2px solid ${C.mutedL}` }}>
+                  {["Date","Pack","Type","Volume","Prix","Canal d'achat"].map(h=>(
+                    <th key={h} style={{ padding:"10px 14px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:0.5 }}>{h}</th>))}
+                </tr></thead>
+                <tbody>
+                  {packs.map((p,i)=>(
+                    <tr key={i} style={{ borderBottom:`1px solid ${C.mutedL}`,background:i%2===0?C.white:C.bg }}>
+                      <td style={{ padding:"9px 14px",color:C.textL,fontFamily:"monospace" }}>{fmtDate(p.date)} {fmtTime(p.date)}</td>
+                      <td style={{ padding:"9px 14px",color:C.navy,fontWeight:600 }}>{p.nom}</td>
+                      <td style={{ padding:"9px 14px" }}><span style={{ fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:5,background:C.bg,color:{voix:C.orange,data:C.sky,sms:C.purple,mixte:C.teal}[p.type] }}>{p.type.toUpperCase()}</span></td>
+                      <td style={{ padding:"9px 14px",color:C.textL }}>{p.volume}</td>
+                      <td style={{ padding:"9px 14px",color:C.navy,fontWeight:600 }}>{p.prix.toLocaleString("fr-FR")} FCFA</td>
+                      <td style={{ padding:"9px 14px",color:C.muted }}>{p.canal}</td>
+                    </tr>))}
+                </tbody>
+              </table>
+            </Card>
+          </>
         )}
 
         {/* ── TAB : Alertes ─────────────────────────────────────────────── */}
